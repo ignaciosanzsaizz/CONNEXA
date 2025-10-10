@@ -355,7 +355,10 @@ public class JVentana extends JFrame {
         private final User currentUser;
 
         public AppMovilMock(User user) {
-            super("CONNEXA");
+            super("CONNEXA APP");
+            Image icon = new ImageIcon(getClass().getResource("/icons/connexa_mini.png")).getImage();
+            setIconImage(icon);
+
             this.currentUser = user;
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             setSize(360, 640);
