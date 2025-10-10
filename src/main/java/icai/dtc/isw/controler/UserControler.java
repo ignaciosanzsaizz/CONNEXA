@@ -21,6 +21,10 @@ public class UserControler {
             throw new IllegalArgumentException("El usuario ya existe");
         }
         User u = new User(username, password, email);
+        boolean ok = customerDAO.insertCliente(u);
+        if (!ok) {
+            throw new IllegalArgumentException("No se ha podido registrar (¿usuario/correo ya existe?)");
+        }
         USERS.put(username, u);
         return u;
     }

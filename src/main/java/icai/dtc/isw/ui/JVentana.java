@@ -45,7 +45,10 @@ public class JVentana extends JFrame {
     private JLabel lblRegError;
 
     public JVentana() {
-        super("INGENIERÍA DEL SOFTWARE");
+        super("CONNEXA APP");
+        Image icon = new ImageIcon(getClass().getResource("/icons/connexa_mini.png")).getImage();
+        setIconImage(icon);
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         JPanel pnlNorte = new GradientBar(new Color(10, 23, 42), new Color(20, 40, 80));
@@ -187,9 +190,11 @@ public class JVentana extends JFrame {
 
     private void doRegister() {
         clearRegisterErrors();
+
         String email = txtRegEmail.getText().trim();
         String user  = txtRegUser.getText().trim();
         String pass  = new String(txtRegPass.getPassword());
+
         if (email.isEmpty() || user.isEmpty() || pass.isEmpty()) {
             lblRegError.setText("Rellene todos los campos.");
             return;
@@ -198,16 +203,29 @@ public class JVentana extends JFrame {
             lblRegError.setText("Correo no válido.");
             return;
         }
+
         try {
             String err = registerUser(email, user, pass);
             if (err == null) {
-                cards.show(root, PANTALLA_REGISTER_OK);
+                // Opcional: mensaje de éxito
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Cuenta creada correctamente. Inicia sesión.",
+                        "Registro correcto",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+
+                // Limpia campos de registro
+                txtRegEmail.setText("");
+                txtRegUser.setText("");
+                txtRegPass.setText("");
+
+                // Ir a INICIAR SESIÓN
+                cards.show(root, PANTALLA_LOGIN);
             } else {
-                if ("EMAIL_EXISTS".equalsIgnoreCase(err)) {
-                    lblRegError.setText("El correo ya existe en la base de datos.");
-                } else {
-                    lblRegError.setText(err);
-                }
+                lblRegError.setText(
+                        "EMAIL_EXISTS".equalsIgnoreCase(err) ? "El correo ya existe en la base de datos." : err
+                );
             }
         } catch (Exception ex) {
             lblRegError.setText("Error de comunicación con el servidor.");
@@ -260,10 +278,12 @@ public class JVentana extends JFrame {
         session = cliente.sentMessage(context, session);
         Object ok = session.get("ok");
         if (Boolean.TRUE.equals(ok)) return null;
+        if (session.get("user") instanceof User) return null;
         Object error = session.get("error");
         if (error instanceof String) return (String) error;
         Object c = session.get("Customer");
         if (c instanceof Customer) return null;
+
         return "No se pudo completar el registro.";
     }
 
@@ -277,7 +297,6 @@ public class JVentana extends JFrame {
         User c = (User) session.get("user");
         return c;
     }
-
     public String recuperarInformacion() {
         Client cliente = new Client();
         HashMap<String,Object> session = new HashMap<>();

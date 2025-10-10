@@ -50,14 +50,7 @@ public class SocketServer extends Thread {
 
 
             switch (mensajeIn.getContext()) {
-                // -----------------------------
-                // EXISTENTES
-                // -----------------------------
 
-
-                // -----------------------------
-                // NUEVOS ENDPOINTS AUTH
-                // -----------------------------
                 case "/loginUser": {
                     String username = (String) session.get("username");
                     String password = (String) session.get("password");
@@ -76,7 +69,7 @@ public class SocketServer extends Thread {
                     break;
                 }
 
-                case "/register": {
+                case "/registerUser": {
                     String username = (String) session.get("username");
                     String password = (String) session.get("password");
                     String email = (String) session.get("email");
@@ -90,11 +83,17 @@ public class SocketServer extends Thread {
                     } catch (IllegalArgumentException ex) {
                         session.put("ok", false);
                         session.put("error", ex.getMessage());
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        session.put("ok", false);
+                        session.put("error", "REGISTER_FAILED");
                     }
+                    objectOutputStream.flush();
                     mensajeOut.setSession(session);
                     objectOutputStream.writeObject(mensajeOut);
                     break;
                 }
+
 
                 default:
                     System.out.println("\nParámetro no encontrado: " + mensajeIn.getContext());

@@ -52,7 +52,12 @@ public class Client {
 				session=mensajeVuelta.getSession();
 
 				break;
-			case "/getCustomerResponse":
+
+            case "/registerResponse":
+                session = mensajeVuelta.getSession();
+                break;
+
+            case "/getCustomerResponse":
 				session=mensajeVuelta.getSession();
 				Customer customer =(Customer) (session.get("Customer"));
 				if (customer!=null) {

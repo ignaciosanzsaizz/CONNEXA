@@ -49,8 +49,24 @@ public class CustomerDAO {
 		return cu;
 		//return new Customer("1","Atilano");
 	}
-	
-	public static void main(String[] args) {
+
+    public boolean insertCliente(User user) {
+        Connection con = ConnectionDAO.getInstance().getConnection();
+        String sql = "INSERT INTO users (id, mail, password, username) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement pst = con.prepareStatement(sql)) {
+            int id = java.util.concurrent.ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
+            pst.setInt(1, id);
+            pst.setString(2, user.getEmail());     // ojo: columna = mail
+            pst.setString(3, user.getPassword());
+            pst.setString(4, user.getUsername());
+            return pst.executeUpdate() == 1;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static void main(String[] args) {
 		
 		CustomerDAO customerDAO=new CustomerDAO();
 		ArrayList<Customer> lista= new ArrayList<>();
