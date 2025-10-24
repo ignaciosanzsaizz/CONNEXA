@@ -66,6 +66,15 @@ public class Client {
 					System.out.println("No se ha recuperado nada de la base de datos");
 				}
 				break;
+
+			case "/empresaGetResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
+			case "/empresaSaveResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
 			default:
 
 				System.out.println("\nError a la vuelta");

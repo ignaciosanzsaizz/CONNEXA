@@ -93,6 +93,39 @@ public class SocketServer extends Thread {
                     objectOutputStream.writeObject(mensajeOut);
                     break;
                 }
+                case "/empresa/get": {
+                    String mail = (String) session.get("mail");
+                    icai.dtc.isw.controler.EmpresaControler ec = new icai.dtc.isw.controler.EmpresaControler();
+                    icai.dtc.isw.domain.Empresa emp = ec.getByMail(mail);
+
+                    mensajeOut.setContext("/empresaGetResponse");
+                    session.put("empresa", emp); // puede ser null si no existe
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/empresa/save": {
+                    String mail   = (String) session.get("mail");
+                    String nombre = (String) session.get("empresaNombre");
+                    String nif    = (String) session.get("nif");
+                    String sector = (String) session.get("sector");
+
+                    icai.dtc.isw.controler.EmpresaControler ec = new icai.dtc.isw.controler.EmpresaControler();
+                    icai.dtc.isw.domain.Empresa e = new icai.dtc.isw.domain.Empresa(mail, nombre, nif, sector);
+
+                    boolean ok = ec.saveOrUpdate(e);
+                    mensajeOut.setContext("/empresaSaveResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "EMPRESA_SAVE_FAILED");
+                    else session.put("empresa", e); // devolver ficha guardada
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
 
 
                 default:
