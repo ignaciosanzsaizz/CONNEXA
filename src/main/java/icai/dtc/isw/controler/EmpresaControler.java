@@ -6,16 +6,19 @@ import icai.dtc.isw.domain.Empresa;
 public class EmpresaControler {
     private final EmpresaDAO dao = new EmpresaDAO();
 
-    public Empresa getByMail(String mail) {
-        if (mail == null || mail.isBlank()) return null;
-        return dao.getByMail(mail);
+    public Empresa getEmpresa(String mail) {
+        return dao.findByMail(mail);
     }
 
-    public boolean saveOrUpdate(Empresa e) {
-        if (e == null || e.getMail() == null || e.getMail().isBlank()) return false;
-        if (e.getEmpresa() == null || e.getEmpresa().isBlank()) return false;
-        if (e.getNif() == null || e.getNif().isBlank()) return false;
-        if (e.getSector() == null || e.getSector().isBlank()) return false;
-        return dao.saveOrUpdate(e);
+    public boolean save(String mail, String empresa, String nif, String sector, String ubicacion) {
+        if (mail == null || mail.isBlank()
+                || empresa == null || empresa.isBlank()
+                || nif == null || nif.isBlank()
+                || sector == null || sector.isBlank()
+                || ubicacion == null || ubicacion.isBlank()) {
+            return false;
+        }
+        Empresa e = new Empresa(mail, empresa, nif, sector, ubicacion);
+        return dao.upsert(e);
     }
 }
