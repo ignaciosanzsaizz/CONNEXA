@@ -1,20 +1,19 @@
 package icai.dtc.isw.ui;
 
-import icai.dtc.isw.domain.User;
 import icai.dtc.isw.domain.Empresa;
+import icai.dtc.isw.domain.User;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.basic.BasicButtonUI;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.awt.image.BufferedImage;
 
 public class AppMovilMock extends JFrame {
 
-    /** Sectores reutilizados desde las categorías generales de Búsquedas */
     public static final String[] CATEGORIAS_GENERALES = new String[] {
             "Hogar y reparaciones",
             "Salud, belleza y cuidados",
@@ -25,7 +24,6 @@ public class AppMovilMock extends JFrame {
             "Tecnología y digital"
     };
 
-    /** Trabajos específicos por categoría (para Búsquedas) */
     private static final Map<String, String[]> ESPECIFICAS = new LinkedHashMap<>();
     static {
         ESPECIFICAS.put("Hogar y reparaciones", new String[] {
@@ -57,6 +55,9 @@ public class AppMovilMock extends JFrame {
     private final JPanel panelContenido;
     private final User currentUser;
 
+    // Guardamos referencia a la tarjeta de PERFIL para poder reconstruirla
+    private JPanel perfilPanel;
+
     public AppMovilMock(User user) {
         super("CONNEXA APP");
         Image icon = new ImageIcon(getClass().getResource("/icons/connexa_mini.png")).getImage();
@@ -70,7 +71,6 @@ public class AppMovilMock extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // Barra superior
         JPanel barraSuperior = new UIUtils.GradientBar(new Color(10, 23, 42), new Color(20, 40, 80));
         barraSuperior.setLayout(new BorderLayout());
         barraSuperior.setBorder(new EmptyBorder(12, 12, 12, 12));
@@ -80,21 +80,22 @@ public class AppMovilMock extends JFrame {
         barraSuperior.add(tituloLabel, BorderLayout.CENTER);
         add(barraSuperior, BorderLayout.NORTH);
 
-        // Contenido con CardLayout
         cardLayout = new CardLayout();
         panelContenido = new JPanel(cardLayout);
         panelContenido.setBackground(new Color(245, 247, 250));
 
-        // Pestañas / pantallas
-        panelContenido.add(crearPantallaPerfil(), "PERFIL");
+        // Construimos y guardamos PERFIL
+        perfilPanel = crearPantallaPerfil();
+        panelContenido.add(perfilPanel, "PERFIL");
         panelContenido.add(crearPantallaBusquedas(), "BUSQUEDAS");
         panelContenido.add(crearPantalla("Favoritos"), "FAVORITOS");
         panelContenido.add(new ChatsPanel(), "CHATS");
-        panelContenido.add(new EmpresaPanel(currentUser, CATEGORIAS_GENERALES), "MI_EMPRESA");
+
+        // PASAMOS this al EmpresaPanel para poder refrescar PERFIL tras guardar
+        panelContenido.add(new EmpresaPanel(currentUser, CATEGORIAS_GENERALES, this), "MI_EMPRESA");
 
         add(panelContenido, BorderLayout.CENTER);
 
-        // Barra inferior de navegación (5 iconos)
         JPanel barraInferior = new JPanel(new GridLayout(1, 5));
         barraInferior.setBorder(new EmptyBorder(8, 8, 8, 8));
         barraInferior.setBackground(Color.WHITE);
@@ -105,7 +106,7 @@ public class AppMovilMock extends JFrame {
         JButton btnChats     = navIconButton("Chats",      "/icons/Chats.png");
         JButton btnEmpresa   = navIconButton("Mi Empresa", "/icons/MiEmpresa.png");
 
-        btnPerfil.addActionListener(e -> { tituloLabel.setText("Perfil");        cardLayout.show(panelContenido, "PERFIL"); });
+        btnPerfil.addActionListener(e -> showPerfil());
         btnBusquedas.addActionListener(e -> { tituloLabel.setText("Búsquedas");  cardLayout.show(panelContenido, "BUSQUEDAS"); });
         btnFavoritos.addActionListener(e -> { tituloLabel.setText("Favoritos");  cardLayout.show(panelContenido, "FAVORITOS"); });
         btnChats.addActionListener(e -> { tituloLabel.setText("Chats");          cardLayout.show(panelContenido, "CHATS"); });
@@ -116,8 +117,25 @@ public class AppMovilMock extends JFrame {
         barraInferior.add(btnFavoritos);
         barraInferior.add(btnChats);
         barraInferior.add(btnEmpresa);
-
         add(barraInferior, BorderLayout.SOUTH);
+    }
+
+    /* ========= API pública para refrescar y navegar a PERFIL ========= */
+
+    /** Reconstruye la tarjeta PERFIL con los datos actuales (empresa incluida) */
+    public void refreshPerfil() {
+        // Elimina el panel antiguo y vuelve a crearlo
+        panelContenido.remove(perfilPanel);
+        perfilPanel = crearPantallaPerfil();
+        panelContenido.add(perfilPanel, "PERFIL");
+        panelContenido.revalidate();
+        panelContenido.repaint();
+    }
+
+    /** Muestra la pestaña PERFIL y ajusta el título */
+    public void showPerfil() {
+        tituloLabel.setText("Perfil");
+        cardLayout.show(panelContenido, "PERFIL");
     }
 
     /* ---------------- Pantallas ---------------- */
@@ -126,11 +144,10 @@ public class AppMovilMock extends JFrame {
         JPanel wrapper = new JPanel(new GridBagLayout());
         wrapper.setBackground(new Color(245, 247, 250));
 
-        JPanel card = new JPanel();
+        JPanel card = new JPanel(new GridBagLayout());
         card.setOpaque(true);
         card.setBackground(Color.WHITE);
         card.setBorder(new UIUtils.RoundedBorder(16, new Color(230, 235, 245)));
-        card.setLayout(new GridBagLayout());
 
         JLabel lbl = new JLabel(textoCentro, SwingConstants.CENTER);
         lbl.setFont(new Font("SansSerif", Font.PLAIN, 16));
@@ -142,7 +159,7 @@ public class AppMovilMock extends JFrame {
     }
 
     private JPanel crearPantallaPerfil() {
-        // Wrapper con dos tarjetas apiladas: datos de usuario y datos de empresa
+        // --- Contenido real del perfil (lo meteremos dentro de un JScrollPane)
         JPanel wrapper = new JPanel(new GridBagLayout());
         wrapper.setBackground(new Color(245, 247, 250));
 
@@ -185,7 +202,7 @@ public class AppMovilMock extends JFrame {
         gbcU.gridy = 1; gbcU.insets = new Insets(4, 12, 8, 12); cardUser.add(gridUser, gbcU);
         gbcU.gridy = 2; gbcU.insets = new Insets(12, 12, 8, 12); cardUser.add(btnLogout, gbcU);
 
-        // ---- Tarjeta: Perfil de empresa SOLO AQUÍ (si existe) con botón Editar
+        // ---- Tarjeta: Perfil de empresa (si existe) con botón Editar
         JPanel cardEmp = new JPanel(new GridBagLayout());
         cardEmp.setOpaque(true);
         cardEmp.setBackground(Color.WHITE);
@@ -222,10 +239,11 @@ public class AppMovilMock extends JFrame {
             g2.fill = GridBagConstraints.HORIZONTAL;
             g2.gridx = 0; g2.gridy = 0;
 
-            addRow(gridEmp, g2, "Empresa", emp.getEmpresa());
-            addRow(gridEmp, g2, "NIF/CIF", emp.getNif());
-            addRow(gridEmp, g2, "Sector", emp.getSector());
-            addRow(gridEmp, g2, "Mail", emp.getMail());
+            addRow(gridEmp, g2, "Empresa",   emp.getEmpresa());
+            addRow(gridEmp, g2, "NIF/CIF",   emp.getNif());
+            addRow(gridEmp, g2, "Sector",    emp.getSector());
+            addRow(gridEmp, g2, "Ubicación", emp.getUbicacion());
+            addRow(gridEmp, g2, "Mail",      emp.getMail());
 
             JButton btnEditar = UIUtils.secondaryButton("Editar perfil");
             btnEditar.addActionListener(e -> mostrarFormularioEmpresa(emp));
@@ -234,16 +252,55 @@ public class AppMovilMock extends JFrame {
             gbcE.gridy = 2; gbcE.insets = new Insets(12, 12, 12, 12); cardEmp.add(btnEditar, gbcE);
         }
 
-        // ---- Añadir ambas tarjetas al wrapper
+        // ---- Añadir tarjetas al wrapper
         GridBagConstraints wrapC = new GridBagConstraints();
         wrapC.insets = new Insets(10, 10, 5, 10);
-        wrapC.gridx = 0; wrapC.gridy = 0; wrapC.fill = GridBagConstraints.HORIZONTAL; wrapC.weightx = 1;
+        wrapC.gridx = 0; wrapC.gridy = 0;
+        wrapC.fill = GridBagConstraints.HORIZONTAL;
+        wrapC.weightx = 1;
         wrapper.add(cardUser, wrapC);
-        wrapC.gridy = 1; wrapC.insets = new Insets(5, 10, 10, 10);
+
+        wrapC.gridy = 1;
+        wrapC.insets = new Insets(5, 10, 10, 10);
         wrapper.add(cardEmp, wrapC);
 
-        return wrapper;
+        // ---- Mapa: debajo de la tarjeta de empresa (solo si hay empresa con ubicación)
+        if (emp != null && emp.getUbicacion() != null && !emp.getUbicacion().isBlank()) {
+            CompanyMapPanel mapCard = new CompanyMapPanel();
+            mapCard.setPreferredSize(new Dimension(320, 240));
+
+            GridBagConstraints wrapC2 = new GridBagConstraints();
+            wrapC2.insets = new Insets(5, 10, 10, 10);
+            wrapC2.gridx = 0;
+            wrapC2.gridy = 2;
+            wrapC2.fill = GridBagConstraints.BOTH;
+            wrapC2.weightx = 1.0;
+            wrapC2.weighty = 0.0;
+
+            wrapper.add(mapCard, wrapC2);
+
+            // Dirección (ubicación) + título del pin (nombre de empresa)
+            mapCard.setAddressAsync(emp.getUbicacion(), emp.getEmpresa());
+        }
+
+        // === NUEVO: envolver todo con JScrollPane para poder hacer scroll
+        JScrollPane scroll = new JScrollPane(
+                wrapper,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+        );
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getVerticalScrollBar().setUnitIncrement(16); // scroll suave
+
+        // Devolvemos un panel contenedor con el scroll dentro
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(new Color(245, 247, 250));
+        root.add(scroll, BorderLayout.CENTER);
+
+        return root;
     }
+
+
 
     private void addRow(JPanel grid, GridBagConstraints g, String k, String v) {
         JLabel lk = new JLabel(k + ":");
@@ -256,58 +313,56 @@ public class AppMovilMock extends JFrame {
     }
 
     private void mostrarFormularioEmpresa(Empresa emp) {
-        // Diálogo de edición reutilizado en Perfil (igual que en EmpresaPanel)
         JTextField txtNombre = UIUtils.styledTextField(22);
         JTextField txtNif    = UIUtils.styledTextField(22);
         JComboBox<String> cboSector = UIUtils.styledCombo(CATEGORIAS_GENERALES);
+        JTextField txtUbicacion = UIUtils.styledTextField(22);
 
         if (emp != null) {
             txtNombre.setText(emp.getEmpresa());
             txtNif.setText(emp.getNif());
             cboSector.setSelectedItem(emp.getSector());
-        } else {
-            if (cboSector.getItemCount() > 0) cboSector.setSelectedIndex(0);
+            txtUbicacion.setText(emp.getUbicacion());
+        } else if (cboSector.getItemCount()>0) {
+            cboSector.setSelectedIndex(0);
         }
 
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(new EmptyBorder(8,8,8,8));
+        form.setBorder(new EmptyBorder(12,12,12,12));
         form.setBackground(Color.WHITE);
         GridBagConstraints gbc = UIUtils.baseGbc();
-        gbc.gridy = 0; form.add(new JLabel("Nombre de la empresa:"), gbc);
-        gbc.gridy = 1; form.add(txtNombre, gbc);
-        gbc.gridy = 2; form.add(new JLabel("NIF/CIF:"), gbc);
-        gbc.gridy = 3; form.add(txtNif, gbc);
-        gbc.gridy = 4; form.add(new JLabel("Sector:"), gbc);
-        gbc.gridy = 5; form.add(cboSector, gbc);
+        gbc.gridy=0; form.add(new JLabel("Nombre de la empresa:"), gbc);
+        gbc.gridy=1; form.add(txtNombre, gbc);
+        gbc.gridy=2; form.add(new JLabel("NIF/CIF:"), gbc);
+        gbc.gridy=3; form.add(txtNif, gbc);
+        gbc.gridy=4; form.add(new JLabel("Sector:"), gbc);
+        gbc.gridy=5; form.add(cboSector, gbc);
+        gbc.gridy=6; form.add(new JLabel("Ubicación:"), gbc);
+        gbc.gridy=7; form.add(txtUbicacion, gbc);
 
         int r = JOptionPane.showConfirmDialog(
-                this,
-                form,
-                "Editar perfil de empresa",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.PLAIN_MESSAGE
+                this, form, "Editar perfil de empresa",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
         );
         if (r == JOptionPane.OK_OPTION) {
             String nombre = txtNombre.getText().trim();
             String nif    = txtNif.getText().trim();
             String sector = (String) cboSector.getSelectedItem();
+            String ubic   = txtUbicacion.getText().trim();
 
-            if (nombre.isEmpty() || nif.isEmpty() || sector == null || sector.isBlank()) {
+            if (nombre.isEmpty() || nif.isEmpty() || sector==null || sector.isBlank() || ubic.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Rellena todos los campos.", "Validación", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
             EmpresaApi api = new EmpresaApi();
-            boolean ok = api.saveEmpresa(safeEmail(), nombre, nif, sector);
+            boolean ok = api.saveEmpresa(safeEmail(), nombre, nif, sector, ubic);
             if (ok) {
-                JOptionPane.showMessageDialog(this, "Perfil de empresa guardado.", "Mi Empresa", JOptionPane.INFORMATION_MESSAGE);
-                // refrescar la pantalla Perfil para mostrar los nuevos datos
-                panelContenido.remove(0);
-                panelContenido.add(crearPantallaPerfil(), "PERFIL");
-                cardLayout.show(panelContenido, "PERFIL");
-                tituloLabel.setText("Perfil");
+                JOptionPane.showMessageDialog(this, "Empresa guardada", "Mi Empresa", JOptionPane.INFORMATION_MESSAGE);
+                refreshPerfil();
+                showPerfil();
             } else {
-                JOptionPane.showMessageDialog(this, "No se pudo guardar el perfil.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Error guardando", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -408,7 +463,6 @@ public class AppMovilMock extends JFrame {
         catch (Exception e) { return null; }
     }
 
-    /** Crea un botón de navegación solo con icono (sin texto) */
     private JButton navIconButton(String tooltip, String resourcePath) {
         JButton b = new JButton();
         b.setUI(new BasicButtonUI());
@@ -420,16 +474,13 @@ public class AppMovilMock extends JFrame {
 
         ImageIcon icon = loadIcon(resourcePath, 75);
         b.setIcon(icon);
-
         b.setPreferredSize(new Dimension(72, 52));
         return b;
     }
 
-    /** Carga un icono desde /resources con altura targetH y escala proporcional */
     private ImageIcon loadIcon(String path, int targetH) {
         java.net.URL url = getClass().getResource(path);
         if (url == null) {
-            // Fallback: botón sin icono
             return new ImageIcon(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB));
         }
         ImageIcon raw = new ImageIcon(url);
