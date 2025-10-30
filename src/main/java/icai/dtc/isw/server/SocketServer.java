@@ -7,13 +7,10 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import icai.dtc.isw.configuration.PropertiesISW;
-
 import icai.dtc.isw.controler.UserControler;
-import icai.dtc.isw.domain.Customer;
 import icai.dtc.isw.domain.User;
 import icai.dtc.isw.message.Message;
 
@@ -24,7 +21,6 @@ public class SocketServer extends Thread {
 
     private SocketServer(Socket socket) {
         this.socket = socket;
-        // Configure connections
         System.out.println("New client connected from " + socket.getInetAddress().getHostAddress());
         start();
     }
@@ -37,17 +33,13 @@ public class SocketServer extends Thread {
             in = socket.getInputStream();
             out = socket.getOutputStream();
 
-            // first read the object that has been sent
             ObjectInputStream objectInputStream = new ObjectInputStream(in);
             Message mensajeIn = (Message) objectInputStream.readObject();
 
-            // Object to return informations
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(out);
             Message mensajeOut = new Message();
 
             HashMap<String, Object> session = mensajeIn.getSession();
-
-
 
             switch (mensajeIn.getContext()) {
 
@@ -72,9 +64,9 @@ public class SocketServer extends Thread {
                 case "/registerUser": {
                     String username = (String) session.get("username");
                     String password = (String) session.get("password");
-                    String email = (String) session.get("email");
+                    String email    = (String) session.get("email");
 
-                    UserControler uc = new UserControler();
+                    icai.dtc.isw.controler.UserControler uc = new icai.dtc.isw.controler.UserControler();
                     mensajeOut.setContext("/registerResponse");
                     try {
                         User u = uc.register(username, password, email);
@@ -93,6 +85,10 @@ public class SocketServer extends Thread {
                     objectOutputStream.writeObject(mensajeOut);
                     break;
                 }
+
+                // ===== EMPRESA =====
+
+                // Consulta por MAIL (para el perfil del usuario logueado)
                 case "/empresa/get": {
                     String mail = (String) session.get("mail");
                     icai.dtc.isw.controler.EmpresaControler ec = new icai.dtc.isw.controler.EmpresaControler();
@@ -106,12 +102,27 @@ public class SocketServer extends Thread {
                     break;
                 }
 
+                // (Opcional) Consulta directa por NIF
+                case "/empresa/getByNif": {
+                    String nif = (String) session.get("nif");
+                    icai.dtc.isw.controler.EmpresaControler ec = new icai.dtc.isw.controler.EmpresaControler();
+                    icai.dtc.isw.domain.Empresa emp = ec.getEmpresaByNif(nif);
+
+                    mensajeOut.setContext("/empresaGetByNifResponse");
+                    session.put("empresa", emp);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                // Guardar/actualizar por NIF (PK)
                 case "/empresa/save": {
                     String mail      = (String) session.get("mail");
                     String empresa   = (String) session.get("empresa");
-                    String nif       = (String) session.get("nif");
+                    String nif       = (String) session.get("nif");       // <-- clave primaria
                     String sector    = (String) session.get("sector");
-                    String ubicacion = (String) session.get("ubicacion"); // NUEVO
+                    String ubicacion = (String) session.get("ubicacion");
 
                     icai.dtc.isw.controler.EmpresaControler ec = new icai.dtc.isw.controler.EmpresaControler();
                     boolean ok = ec.save(mail, empresa, nif, sector, ubicacion);
@@ -125,8 +136,6 @@ public class SocketServer extends Thread {
                     break;
                 }
 
-
-
                 default:
                     System.out.println("\nParámetro no encontrado: " + mensajeIn.getContext());
                     break;
@@ -137,17 +146,9 @@ public class SocketServer extends Thread {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } finally {
-            try {
-                if (in != null) in.close();
-            } catch (IOException ignored) {}
-            try {
-                if (out != null) out.close();
-            } catch (IOException ignored) {}
-            try {
-                if (socket != null) socket.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            try { if (in != null) in.close(); } catch (IOException ignored) {}
+            try { if (out != null) out.close(); } catch (IOException ignored) {}
+            try { if (socket != null) socket.close(); } catch (IOException ex) { ex.printStackTrace(); }
         }
     }
 
@@ -162,11 +163,7 @@ public class SocketServer extends Thread {
         } catch (IOException ex) {
             System.out.println("Unable to start server.");
         } finally {
-            try {
-                if (server != null) server.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            try { if (server != null) server.close(); } catch (IOException ex) { ex.printStackTrace(); }
         }
     }
 }
