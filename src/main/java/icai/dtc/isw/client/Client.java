@@ -75,6 +75,18 @@ public class Client {
 				session = mensajeVuelta.getSession();
 				break;
 
+			case "/anuncioCreateResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
+			case "/anuncioGetResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
+			case "/anuncioListResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
 			default:
 
 				System.out.println("\nError a la vuelta");

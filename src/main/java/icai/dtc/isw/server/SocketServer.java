@@ -136,6 +136,58 @@ public class SocketServer extends Thread {
                     break;
                 }
 
+                // ===== ANUNCIO =====
+
+                // Crear anuncio
+                case "/anuncio/create": {
+                    String descripcion    = (String) session.get("descripcion");
+                    Double precio         = (Double) session.get("precio");
+                    String categoria      = (String) session.get("categoria");
+                    String especificacion = (String) session.get("especificacion");
+                    String ubicacion      = (String) session.get("ubicacion");
+                    String nifEmpresa     = (String) session.get("nif_empresa");
+
+                    icai.dtc.isw.controler.AnuncioControler ac = new icai.dtc.isw.controler.AnuncioControler();
+                    boolean ok = ac.createAnuncio(descripcion, precio, categoria,
+                                                   especificacion, ubicacion, nifEmpresa);
+
+                    mensajeOut.setContext("/anuncioCreateResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "ANUNCIO_CREATE_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                // Obtener un anuncio por ID
+                case "/anuncio/get": {
+                    String id = (String) session.get("id");
+                    icai.dtc.isw.controler.AnuncioControler ac = new icai.dtc.isw.controler.AnuncioControler();
+                    icai.dtc.isw.domain.Anuncio anuncio = ac.getAnuncio(id);
+
+                    mensajeOut.setContext("/anuncioGetResponse");
+                    session.put("anuncio", anuncio);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                // Listar anuncios por empresa
+                case "/anuncio/list": {
+                    String nifEmpresa = (String) session.get("nif_empresa");
+                    icai.dtc.isw.controler.AnuncioControler ac = new icai.dtc.isw.controler.AnuncioControler();
+                    java.util.List<icai.dtc.isw.domain.Anuncio> anuncios = ac.getAnunciosByEmpresa(nifEmpresa);
+
+                    mensajeOut.setContext("/anuncioListResponse");
+                    session.put("anuncios", anuncios);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
                 default:
                     System.out.println("\nParámetro no encontrado: " + mensajeIn.getContext());
                     break;
