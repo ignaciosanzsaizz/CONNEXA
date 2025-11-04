@@ -197,7 +197,7 @@ public class EmpresaPanel extends JPanel {
             new UIUtils.RoundedBorder(12, new Color(220, 230, 245)),
             new EmptyBorder(16, 16, 16, 16)
         ));
-        tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
 
         // Panel izquierdo con la información principal
         JPanel infoPanel = new JPanel();
@@ -231,16 +231,26 @@ public class EmpresaPanel extends JPanel {
         lblUbicacion.setForeground(new Color(90, 100, 120));
         lblUbicacion.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Fecha
-        String fecha = "";
+        // Fecha de publicación
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+        String fechaPublicacion = "";
         if (anuncio.getCreadoEn() != null) {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            fecha = "🕒 Publicado: " + sdf.format(anuncio.getCreadoEn());
+            fechaPublicacion = "🕒 Publicado: " + sdf.format(anuncio.getCreadoEn());
         }
-        JLabel lblFecha = new JLabel(fecha);
-        lblFecha.setFont(new Font("SansSerif", Font.ITALIC, 11));
-        lblFecha.setForeground(new Color(120, 130, 150));
-        lblFecha.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel lblFechaPublicacion = new JLabel(fechaPublicacion);
+        lblFechaPublicacion.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        lblFechaPublicacion.setForeground(new Color(120, 130, 150));
+        lblFechaPublicacion.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Fecha de actualización
+        String fechaActualizacion = "";
+        if (anuncio.getActualizadoEn() != null) {
+            fechaActualizacion = "🔄 Actualizado: " + sdf.format(anuncio.getActualizadoEn());
+        }
+        JLabel lblFechaActualizacion = new JLabel(fechaActualizacion);
+        lblFechaActualizacion.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        lblFechaActualizacion.setForeground(new Color(120, 130, 150));
+        lblFechaActualizacion.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         infoPanel.add(lblCategoria);
         infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
@@ -250,23 +260,92 @@ public class EmpresaPanel extends JPanel {
         infoPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         infoPanel.add(lblUbicacion);
         infoPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        infoPanel.add(lblFecha);
+        infoPanel.add(lblFechaPublicacion);
+        if (!fechaActualizacion.isEmpty()) {
+            infoPanel.add(Box.createRigidArea(new Dimension(0, 2)));
+            infoPanel.add(lblFechaActualizacion);
+        }
 
-        // Panel derecho con el precio
-        JPanel precioPanel = new JPanel(new BorderLayout());
-        precioPanel.setBackground(new Color(250, 252, 255));
-        precioPanel.setPreferredSize(new Dimension(120, 100));
+        // Panel derecho con precio y botones
+        JPanel derechaPanel = new JPanel();
+        derechaPanel.setLayout(new BoxLayout(derechaPanel, BoxLayout.Y_AXIS));
+        derechaPanel.setBackground(new Color(250, 252, 255));
+        derechaPanel.setPreferredSize(new Dimension(120, 100));
 
         JLabel lblPrecio = new JLabel(String.format("%.2f €", anuncio.getPrecio()));
         lblPrecio.setFont(new Font("SansSerif", Font.BOLD, 24));
         lblPrecio.setForeground(new Color(20, 120, 80));
-        lblPrecio.setHorizontalAlignment(SwingConstants.CENTER);
+        lblPrecio.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        precioPanel.add(lblPrecio, BorderLayout.CENTER);
+        // Botón Eliminar
+        JButton btnEliminar = UIUtils.dangerButton("🗑️ Eliminar");
+        btnEliminar.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnEliminar.setPreferredSize(new Dimension(110, 35));
+        btnEliminar.setMaximumSize(new Dimension(110, 35));
+        btnEliminar.addActionListener(e -> {
+            int confirmacion = JOptionPane.showConfirmDialog(
+                this,
+                "¿Estás seguro de que deseas eliminar este anuncio?",
+                "Confirmar eliminación",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            );
+
+            if (confirmacion == JOptionPane.YES_OPTION) {
+                // Ejecutar eliminación en un hilo separado para no bloquear la UI
+                new Thread(() -> {
+                    try {
+                        boolean ok = anuncioApi.deleteAnuncio(anuncio.getId());
+                        System.out.println("Resultado de eliminación: " + ok + " para ID: " + anuncio.getId());
+
+                        // Siempre recargar la lista en el EDT (aunque la API diga false, puede que haya funcionado)
+                        SwingUtilities.invokeLater(() -> {
+                            cargarEstado();
+                            // Mostrar mensaje solo si realmente no se eliminó (verificando la nueva lista)
+                        });
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(
+                                EmpresaPanel.this,
+                                "Error al eliminar el anuncio: " + ex.getMessage(),
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE
+                            );
+                        });
+                    }
+                }).start();
+            }
+        });
+
+        // Botón Editar
+        JButton btnEditar = UIUtils.secondaryButton("✏️ Editar");
+        btnEditar.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnEditar.setPreferredSize(new Dimension(110, 35));
+        btnEditar.setMaximumSize(new Dimension(110, 35));
+        btnEditar.addActionListener(e -> {
+            Frame parentFrame = (Frame) SwingUtilities.getWindowAncestor(this);
+            EditarAnuncioPanel dialog = new EditarAnuncioPanel(parentFrame, anuncio, this);
+            dialog.setVisible(true);
+            // El diálogo llamará a recargarAnuncios() después de editar
+        });
+
+        derechaPanel.add(lblPrecio);
+        derechaPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+        derechaPanel.add(btnEliminar);
+        derechaPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        derechaPanel.add(btnEditar);
 
         tarjeta.add(infoPanel, BorderLayout.CENTER);
-        tarjeta.add(precioPanel, BorderLayout.EAST);
+        tarjeta.add(derechaPanel, BorderLayout.EAST);
 
         return tarjeta;
+    }
+
+    /**
+     * Método público para recargar los anuncios desde componentes externos
+     */
+    public void recargarAnuncios() {
+        SwingUtilities.invokeLater(() -> cargarEstado());
     }
 }

@@ -188,6 +188,42 @@ public class SocketServer extends Thread {
                     break;
                 }
 
+                // Actualizar anuncio
+                case "/anuncio/update": {
+                    String id             = (String) session.get("id");
+                    String descripcion    = (String) session.get("descripcion");
+                    Double precio         = (Double) session.get("precio");
+                    String categoria      = (String) session.get("categoria");
+                    String especificacion = (String) session.get("especificacion");
+                    String ubicacion      = (String) session.get("ubicacion");
+
+                    icai.dtc.isw.controler.AnuncioControler ac = new icai.dtc.isw.controler.AnuncioControler();
+                    boolean ok = ac.updateAnuncio(id, descripcion, precio, categoria, especificacion, ubicacion);
+
+                    mensajeOut.setContext("/anuncioUpdateResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "ANUNCIO_UPDATE_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                // Eliminar anuncio por ID
+                case "/anuncio/delete": {
+                    String id = (String) session.get("id");
+                    icai.dtc.isw.controler.AnuncioControler ac = new icai.dtc.isw.controler.AnuncioControler();
+                    boolean ok = ac.deleteAnuncio(id);
+
+                    mensajeOut.setContext("/anuncioDeleteResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "ANUNCIO_DELETE_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
                 default:
                     System.out.println("\nParámetro no encontrado: " + mensajeIn.getContext());
                     break;

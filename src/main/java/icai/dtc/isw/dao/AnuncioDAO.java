@@ -10,13 +10,13 @@ public class AnuncioDAO {
 
     /**
      * Inserta un nuevo anuncio en la base de datos.
-     * Las columnas creado_en y actualizado_en se rellenan automáticamente por el trigger/default de la BD.
+     * Los campos creado_en y actualizado_en se establecen a NOW().
      */
     public boolean insert(Anuncio anuncio) {
         Connection con = ConnectionDAO.getInstance().getConnection();
         String sql = """
-            INSERT INTO anuncios (id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO anuncios (id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa, creado_en, actualizado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             """;
         try (PreparedStatement pst = con.prepareStatement(sql)) {
             pst.setString(1, anuncio.getId());
@@ -96,6 +96,59 @@ public class AnuncioDAO {
             ex.printStackTrace();
         }
         return anuncios;
+    }
+
+    /**
+     * Actualiza un anuncio existente.
+     * El campo actualizado_en se establece a NOW().
+     */
+    public boolean update(Anuncio anuncio) {
+        Connection con = ConnectionDAO.getInstance().getConnection();
+        String sql = """
+            UPDATE anuncios 
+            SET descripcion = ?, precio = ?, categoria = ?, especificacion = ?, 
+                ubicacion = ?, actualizado_en = NOW()
+            WHERE id = ?
+            """;
+        try (PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, anuncio.getDescripcion());
+            pst.setDouble(2, anuncio.getPrecio());
+            pst.setString(3, anuncio.getCategoria());
+            pst.setString(4, anuncio.getEspecificacion());
+            pst.setString(5, anuncio.getUbicacion());
+            pst.setString(6, anuncio.getId());
+
+            int rows = pst.executeUpdate();
+            System.out.println("AnuncioDAO.update: Filas actualizadas = " + rows + " para ID = " + anuncio.getId());
+            return rows > 0;
+        } catch (SQLException ex) {
+            System.err.println("AnuncioDAO.update: Error SQL al actualizar anuncio ID = " + anuncio.getId());
+            ex.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Elimina un anuncio por su ID.
+     */
+    public boolean delete(String id) {
+        if (id == null || id.isBlank()) {
+            System.out.println("AnuncioDAO.delete: ID es null o vacío");
+            return false;
+        }
+        Connection con = ConnectionDAO.getInstance().getConnection();
+        String sql = "DELETE FROM anuncios WHERE id = ?";
+
+        try (PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, id);
+            int rows = pst.executeUpdate();
+            System.out.println("AnuncioDAO.delete: Filas eliminadas = " + rows + " para ID = " + id);
+            return rows > 0;
+        } catch (SQLException ex) {
+            System.err.println("AnuncioDAO.delete: Error SQL al eliminar anuncio ID = " + id);
+            ex.printStackTrace();
+            return false;
+        }
     }
 
     /**

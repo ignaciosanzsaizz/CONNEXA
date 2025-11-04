@@ -52,5 +52,35 @@ public class AnuncioApi {
         Object o = session.get("anuncios");
         return (o instanceof List) ? (List<Anuncio>) o : null;
     }
+
+    /**
+     * Actualiza un anuncio existente.
+     */
+    public boolean updateAnuncio(String id, String descripcion, Double precio, String categoria,
+                                  String especificacion, String ubicacion) {
+        Client c = new Client();
+        HashMap<String, Object> session = new HashMap<>();
+        session.put("id", id);
+        session.put("descripcion", descripcion);
+        session.put("precio", precio);
+        session.put("categoria", categoria);
+        session.put("especificacion", especificacion);
+        session.put("ubicacion", ubicacion);
+
+        session = c.sentMessage("/anuncio/update", session);
+        return Boolean.TRUE.equals(session.get("ok"));
+    }
+
+    /**
+     * Elimina un anuncio por su ID.
+     */
+    public boolean deleteAnuncio(String id) {
+        Client c = new Client();
+        HashMap<String, Object> session = new HashMap<>();
+        session.put("id", id);
+
+        session = c.sentMessage("/anuncio/delete", session);
+        return Boolean.TRUE.equals(session.get("ok"));
+    }
 }
 

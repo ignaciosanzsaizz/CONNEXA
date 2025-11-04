@@ -52,5 +52,39 @@ public class AnuncioControler {
     public List<Anuncio> getAllAnuncios() {
         return dao.findAll();
     }
+
+    /**
+     * Actualiza un anuncio existente.
+     */
+    public boolean updateAnuncio(String id, String descripcion, Double precio, String categoria,
+                                  String especificacion, String ubicacion) {
+        // Validaciones
+        if (id == null || id.isBlank()) return false;
+        if (descripcion == null || descripcion.isBlank()) return false;
+        if (precio == null || precio <= 0) return false;
+        if (categoria == null || categoria.isBlank()) return false;
+        if (especificacion == null || especificacion.isBlank()) return false;
+        if (ubicacion == null || ubicacion.isBlank()) return false;
+
+        // Obtener el anuncio existente para mantener nif_empresa
+        Anuncio existente = dao.findById(id);
+        if (existente == null) return false;
+
+        // Actualizar campos
+        existente.setDescripcion(descripcion);
+        existente.setPrecio(precio);
+        existente.setCategoria(categoria);
+        existente.setEspecificacion(especificacion);
+        existente.setUbicacion(ubicacion);
+
+        return dao.update(existente);
+    }
+
+    /**
+     * Elimina un anuncio por su ID.
+     */
+    public boolean deleteAnuncio(String id) {
+        return dao.delete(id);
+    }
 }
 
