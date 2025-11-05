@@ -36,3 +36,29 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### GitHub Copilot y herramientas de IA ###
+# Directorio de Copilot
+.copilot/
+.copilot/history/
+.copilot/global/
+.copilot/local/
+.copilot/settings/
+.copilot/sessions/
+.copilot/user/
+.copilot/workspace/
+
+# Archivos de configuración de Copilot
+.copilot.yml
+.copilot.yaml
+.copilotignore
+copilot-*.json
+
+# GitHub Copilot Chat
+.github-copilot/
+.copilot-chat/
+
+# Otros archivos temporales de IA
+*.copilot
+.ai/
+.cursor/

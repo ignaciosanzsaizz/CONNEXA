@@ -66,6 +66,10 @@ public class AppMovilMock extends JFrame {
     // Botones de la tab bar para marcar seleccionado
     private JButton btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa;
 
+    private JComboBox<String> cboUbicacion;
+    private JComboBox<String> cboCalidad;
+
+
     public AppMovilMock(User user) {
         super("CONNEXA APP");
         Image icon = new ImageIcon(getClass().getResource("/icons/connexa_mini.png")).getImage();
@@ -345,12 +349,14 @@ public class AppMovilMock extends JFrame {
 
         JPanel filtrosCard = createCardPanel();
 
+        //Tarjeta de Filtros
         GridBagConstraints gbc = new GridBagConstraints();
         filtrosCard.setLayout(new GridBagLayout());
         gbc.insets = new Insets(6, 10, 6, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridx = 0; gbc.gridy = 0;
 
+        //Categoria
         JLabel lblGeneral = new JLabel("Categoría");
         lblGeneral.setForeground(new Color(20, 40, 80));
         lblGeneral.setFont(new Font("SansSerif", Font.PLAIN, 12)); // texto más pequeño
@@ -358,6 +364,7 @@ public class AppMovilMock extends JFrame {
         gbc.weightx = 0; filtrosCard.add(lblGeneral, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboGeneral, gbc);
 
+        //Trabajo
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
         JLabel lblEspecifico = new JLabel("Trabajo");
         lblEspecifico.setForeground(new Color(20, 40, 80));
@@ -366,6 +373,28 @@ public class AppMovilMock extends JFrame {
         cboEspecifico.setEnabled(false);
         filtrosCard.add(lblEspecifico, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboEspecifico, gbc);
+
+
+        //Ubicación
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0;
+        JLabel lblUbicacion = new JLabel("Ubicacion");
+        lblUbicacion.setForeground(new Color(20, 40, 80));
+        lblUbicacion.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        cboUbicacion = UIUtils.styledCombo(new String[]{"500 m", "1 km", "2 km", "5 km", "10 km"});
+        cboUbicacion.setSelectedIndex(1); // por defecto "1 km"
+        filtrosCard.add(lblUbicacion, gbc);
+        gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboUbicacion, gbc);
+
+
+        //Calidad
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0;
+        JLabel lblCalidad = new JLabel("Calidad");
+        lblCalidad.setForeground(new Color(20, 40, 80));
+        lblCalidad.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        cboCalidad = UIUtils.styledCombo(new String[]{"⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"});
+        cboCalidad.setSelectedIndex(0);
+        filtrosCard.add(lblCalidad, gbc);
+        gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboCalidad, gbc);
 
         JPanel resultadosCard = createCardPanel();
         resultadosCard.setLayout(new BorderLayout());
