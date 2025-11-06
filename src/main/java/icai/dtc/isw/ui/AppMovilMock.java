@@ -184,7 +184,7 @@ public class AppMovilMock extends JFrame {
         setSelectedTab(btnPerfil);
     }
 
-    /* ========= API pública para refrescar y navegar a PERFIL ========= */
+    /* ========= API pública para refrescar, navegar y AÑADIR ANUNCIO ========= */
 
     /** Reconstruye la tarjeta PERFIL con los datos actuales (empresa incluida) */
     public void refreshPerfil() {
@@ -198,6 +198,15 @@ public class AppMovilMock extends JFrame {
     /** Muestra la pestaña PERFIL y ajusta el título/subtítulo */
     public void showPerfil() {
         cardLayout.show(panelContenido, "PERFIL");
+    }
+
+    /** Abre la pantalla de "Nuevo anuncio" ocupando TODO el área central (pantalla completa de la app). */
+    public void showNuevoAnuncio() {
+        JPanel nuevo = new NuevoAnuncioPanel();
+        panelContenido.add(nuevo, "NUEVO_ANUNCIO");
+        cardLayout.show(panelContenido, "NUEVO_ANUNCIO");
+        subLabel.setText("➕ Nuevo anuncio");
+        setSelectedTab(null); // ninguna pestaña de la barra inferior marcada
     }
 
     /* ---------------- Pantallas ---------------- */
@@ -634,6 +643,11 @@ public class AppMovilMock extends JFrame {
         JButton[] all = {btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa};
         for (JButton b : all) {
             if (b == null) continue;
+            if (selected == null) {
+                b.setBackground(Color.WHITE);
+                b.setBorder(new UIUtils.RoundedBorder(14, new Color(220, 226, 235)));
+                continue;
+            }
             if (b == selected) {
                 b.setBackground(new Color(232, 239, 255));
                 b.setBorder(new UIUtils.RoundedBorder(14, new Color(120, 160, 255)));
@@ -701,22 +715,22 @@ public class AppMovilMock extends JFrame {
         ));
         tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
 
-        // Panel izquierdo con la información principal
+        // ----- Panel izquierdo: información del anuncio -----
         JPanel infoPanel = new JPanel();
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
         infoPanel.setBackground(new Color(250, 252, 255));
 
-        // Línea “Categoría · Trabajo” (texto coloreado, sin óvalos)
-        String cat  = anuncio.getCategoria()     != null ? anuncio.getCategoria()      : "";
-        String spec = anuncio.getEspecificacion()!= null ? anuncio.getEspecificacion() : "";
-        String linea = spec.isBlank() ? cat : (cat + " · " + spec);
+        // Línea “Categoría · Trabajo”
+        String cat  = anuncio.getCategoria()      != null ? anuncio.getCategoria()      : "";
+        String spec = anuncio.getEspecificacion() != null ? anuncio.getEspecificacion() : "";
+        String linea = (spec.isBlank() ? cat : (cat + " · " + spec));
 
         JLabel lblLinea = new JLabel(linea);
         lblLinea.setFont(new Font("SansSerif", Font.BOLD, 11));
         lblLinea.setForeground(new Color(80, 120, 200));
         lblLinea.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Descripción (destacada)
+        // Descripción
         String desc = anuncio.getDescripcion() != null ? anuncio.getDescripcion() : "";
         String descCorta = desc.length() > 80 ? desc.substring(0, 80) + "..." : desc;
         JLabel lblDescripcion = new JLabel("<html><b>" + descCorta + "</b></html>");
@@ -748,19 +762,18 @@ public class AppMovilMock extends JFrame {
             infoPanel.add(lblUpd);
         }
 
-        // Ensamble izquierda
         infoPanel.add(lblLinea);
         infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
         infoPanel.add(lblDescripcion);
         infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
         infoPanel.add(lblUbicacion);
-        infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        infoPanel.add(Box.createVerticalGlue());
 
-        // Panel derecho con precio
+        // ----- Panel derecho: precio + botón "Ver detalles" -----
         JPanel derecha = new JPanel();
         derecha.setLayout(new BoxLayout(derecha, BoxLayout.Y_AXIS));
         derecha.setBackground(new Color(250, 252, 255));
-        derecha.setPreferredSize(new Dimension(130, 100));
+        derecha.setPreferredSize(new Dimension(150, 100));
 
         String precioStr = (anuncio.getPrecio() != null) ? String.format("%.2f €", anuncio.getPrecio()) : "";
         JLabel lblPrecio = new JLabel(precioStr);
@@ -768,17 +781,38 @@ public class AppMovilMock extends JFrame {
         lblPrecio.setForeground(new Color(20, 120, 80));
         lblPrecio.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        JButton btnDetalles = UIUtils.primaryButton("Ver detalles");
+        btnDetalles.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnDetalles.addActionListener(e -> showDetalleAnuncio(anuncio));
+
         derecha.add(Box.createVerticalStrut(2));
         derecha.add(lblPrecio);
+        derecha.add(Box.createVerticalStrut(10));
+        derecha.add(btnDetalles);
         derecha.add(Box.createVerticalGlue());
 
+        // Ensamblado
         tarjeta.add(infoPanel, BorderLayout.CENTER);
         tarjeta.add(derecha, BorderLayout.EAST);
 
-        // Doble clic para ver detalle
+        // Solo estilo de cursor
         tarjeta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         return tarjeta;
+    }
+
+    // Muestra el panel de detalle del anuncio sustituyendo la pantalla de búsquedas
+    private void showDetalleAnuncio(Anuncio a) {
+        JPanel detalle = new AnuncioDetallePanel(a, () -> {
+            // Volver a la lista de búsquedas
+            cardLayout.show(panelContenido, "BUSQUEDAS");
+            subLabel.setText("🔎 Búsquedas");
+            setSelectedTab(btnBusquedas);
+        });
+        panelContenido.add(detalle, "DETALLE_ANUNCIO");
+        cardLayout.show(panelContenido, "DETALLE_ANUNCIO");
+        subLabel.setText("📄 Detalle");
+        setSelectedTab(null);
     }
 
     private void mostrarDetalleAnuncio(Anuncio a, Component parent) {
@@ -800,5 +834,151 @@ public class AppMovilMock extends JFrame {
                 "Detalle del anuncio",
                 JOptionPane.INFORMATION_MESSAGE
         );
+    }
+
+    /* ====================== PANTALLA COMPLETA: NUEVO ANUNCIO ====================== */
+
+    /** Panel interno de "Nuevo Anuncio" a pantalla completa dentro del CardLayout */
+    private class NuevoAnuncioPanel extends JPanel {
+        private final JTextField txtDescripcion = UIUtils.styledTextField(26);
+        private final JTextField txtPrecio = UIUtils.styledTextField(12);
+        private final JComboBox<String> cboCategoria = UIUtils.styledCombo(CATEGORIAS_GENERALES);
+        private final JComboBox<String> cboEspecificacion = UIUtils.styledCombo(new String[]{});
+        private final JTextField txtUbicacion = UIUtils.styledTextField(22);
+        private final JTextField txtNifEmpresa = UIUtils.styledTextField(18);
+
+        NuevoAnuncioPanel() {
+            super(new BorderLayout());
+            setBackground(new Color(245,247,250));
+
+            // Header
+            JPanel header = new JPanel(new BorderLayout());
+            header.setOpaque(false);
+            header.setBorder(new EmptyBorder(12,12,12,12));
+
+            JButton btnBack = UIUtils.secondaryButton("← Volver");
+            btnBack.addActionListener(e -> {
+                cardLayout.show(panelContenido, "BUSQUEDAS");
+                subLabel.setText("🔎 Búsquedas");
+                setSelectedTab(btnBusquedas);
+            });
+
+            JLabel titulo = titleLabel("Nuevo anuncio");
+            titulo.setHorizontalAlignment(SwingConstants.CENTER);
+
+            header.add(btnBack, BorderLayout.WEST);
+            header.add(titulo, BorderLayout.CENTER);
+
+            // Formulario
+            JPanel card = createCardPanel();
+            card.setLayout(new GridBagLayout());
+            card.setOpaque(true);
+            card.setBackground(Color.WHITE);
+            GridBagConstraints gbc = UIUtils.baseGbc();
+
+            // Prefill NIF/ubicación desde empresa si existe
+            EmpresaApi empApi = new EmpresaApi();
+            Empresa emp = empApi.getEmpresa(safeEmail());
+            if (emp != null) {
+                txtNifEmpresa.setText(safe(emp.getNif(), ""));
+                txtUbicacion.setText(safe(emp.getUbicacion(), ""));
+            }
+
+            // Campos
+            gbc.gridy=0; card.add(new JLabel("Descripción"), gbc);
+            gbc.gridy=1; card.add(txtDescripcion, gbc);
+
+            gbc.gridy=2; card.add(new JLabel("Precio (€)"), gbc);
+            gbc.gridy=3; card.add(txtPrecio, gbc);
+
+            gbc.gridy=4; card.add(new JLabel("Categoría"), gbc);
+            gbc.gridy=5; card.add(cboCategoria, gbc);
+
+            gbc.gridy=6; card.add(new JLabel("Trabajo"), gbc);
+            cboEspecificacion.setEnabled(false);
+            gbc.gridy=7; card.add(cboEspecificacion, gbc);
+
+            gbc.gridy=8; card.add(new JLabel("Ubicación"), gbc);
+            gbc.gridy=9; card.add(txtUbicacion, gbc);
+
+            gbc.gridy=10; card.add(new JLabel("NIF Empresa"), gbc);
+            gbc.gridy=11; card.add(txtNifEmpresa, gbc);
+
+            // Footer acciones
+            JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            footer.setOpaque(false);
+            JButton btnCancelar = UIUtils.secondaryButton("Cancelar");
+            JButton btnGuardar  = UIUtils.primaryButton("Guardar anuncio");
+
+            btnCancelar.addActionListener(e -> {
+                cardLayout.show(panelContenido, "BUSQUEDAS");
+                subLabel.setText("🔎 Búsquedas");
+                setSelectedTab(btnBusquedas);
+            });
+
+            btnGuardar.addActionListener(e -> guardarAnuncio());
+
+            footer.add(btnCancelar);
+            footer.add(btnGuardar);
+
+            // listeners categoría → específica
+            cboCategoria.addActionListener(e -> {
+                String general = (String) cboCategoria.getSelectedItem();
+                cboEspecificacion.removeAllItems();
+                if (general != null && ESPECIFICAS.containsKey(general)) {
+                    for (String s : ESPECIFICAS.get(general)) cboEspecificacion.addItem(s);
+                    cboEspecificacion.setEnabled(true);
+                    if (cboEspecificacion.getItemCount() > 0) cboEspecificacion.setSelectedIndex(0);
+                } else {
+                    cboEspecificacion.setEnabled(false);
+                }
+            });
+            if (cboCategoria.getItemCount() > 0) cboCategoria.setSelectedIndex(0);
+
+            // Ensamblado pantalla completa
+            JPanel center = new JPanel(new BorderLayout());
+            center.setOpaque(false);
+            center.setBorder(new EmptyBorder(12,12,12,12));
+            center.add(card, BorderLayout.CENTER);
+
+            add(header, BorderLayout.NORTH);
+            add(center, BorderLayout.CENTER);
+            add(footer, BorderLayout.SOUTH);
+        }
+
+        private void guardarAnuncio() {
+            String desc  = txtDescripcion.getText().trim();
+            String precioStr = txtPrecio.getText().trim();
+            String cat   = (String) cboCategoria.getSelectedItem();
+            String esp   = cboEspecificacion.isEnabled()? (String) cboEspecificacion.getSelectedItem() : null;
+            String ubic  = txtUbicacion.getText().trim();
+            String nif   = txtNifEmpresa.getText().trim();
+
+            if (desc.isEmpty() || precioStr.isEmpty() || cat==null || cat.isBlank() || ubic.isEmpty() || nif.isEmpty()) {
+                JOptionPane.showMessageDialog(AppMovilMock.this, "Rellena los campos obligatorios.", "Validación", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Double precio;
+            try { precio = Double.parseDouble(precioStr.replace(",", ".")); }
+            catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(AppMovilMock.this, "Precio inválido.", "Validación", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            AnuncioApi api = new AnuncioApi();
+            boolean ok = api.createAnuncio(desc, precio, cat, esp, ubic, nif);
+            if (ok) {
+                JOptionPane.showMessageDialog(AppMovilMock.this, "Anuncio creado", "Nuevo anuncio", JOptionPane.INFORMATION_MESSAGE);
+                // Volver a búsquedas y refrescar resultados con la categoría seleccionada
+                cardLayout.show(panelContenido, "BUSQUEDAS");
+                subLabel.setText("🔎 Búsquedas");
+                setSelectedTab(btnBusquedas);
+                // Opcional: recargar resultados usando cat/esp actuales
+                recargarResultados(cat, esp);
+            } else {
+                JOptionPane.showMessageDialog(AppMovilMock.this, "Error creando el anuncio", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 }
