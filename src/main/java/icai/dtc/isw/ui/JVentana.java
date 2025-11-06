@@ -113,6 +113,7 @@ public class JVentana extends JFrame {
         // REGISTER_OK (si lo usas en tu flujo)
         root.add(new RegisterOkPanel(() -> cards.show(root, PANTALLA_HOME)), PANTALLA_REGISTER_OK);
 
+        
         // Tamaño y arranque
         setSize(360, 640);
         setResizable(false);

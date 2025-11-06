@@ -65,8 +65,8 @@ public class AppMovilMock extends JFrame {
     // === Estado de UI ===
     private final JLabel tituloLabel;
     private final JLabel subLabel;
-    private final CardLayout cardLayout;
-    private final JPanel panelContenido;
+    private final CardLayout cardLayout = new CardLayout();
+    private final JPanel panelContenido = new JPanel(cardLayout);
     private final User currentUser;
 
     // Guardamos referencia a la tarjeta de PERFIL para poder reconstruirla
@@ -74,6 +74,9 @@ public class AppMovilMock extends JFrame {
 
     // Botones de la tab bar para marcar seleccionado
     private JButton btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa;
+    private JButton btnBack; // botón volver en detalle de chat
+    private ChatsListPanel chatsList; // lista de chats (al estilo WhatsApp)
+    private ChatsPanel chatPanel;     // detalle de chat
 
     private JComboBox<String> cboUbicacion;
     private JComboBox<String> cboCalidad;
@@ -95,6 +98,8 @@ public class AppMovilMock extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
+        // (Chats se registra más abajo como CHATS_LIST y CHAT)
+
         // ======== Barra superior (gradiente + título + subtítulo) ========
         JPanel barraSuperior = new UIUtils.GradientBar(new Color(10, 23, 42), new Color(20, 40, 80));
         barraSuperior.setLayout(new BorderLayout());
@@ -115,20 +120,76 @@ public class AppMovilMock extends JFrame {
         titWrap.add(tituloLabel);
         titWrap.add(subLabel);
 
-        barraSuperior.add(titWrap, BorderLayout.WEST);
+        // Botón "volver" para detalle de chat (oculto por defecto)
+        btnBack = UIUtils.ghostButton("←");
+        btnBack.setPreferredSize(new Dimension(44, 32));
+        btnBack.setVisible(false);
+        // restyle back button to a clean icon-only look
+        try {
+            btnBack.setText("\u2190"); // ←
+            btnBack.setUI(new javax.swing.plaf.basic.BasicButtonUI());
+            btnBack.setOpaque(false);
+            btnBack.setContentAreaFilled(false);
+            btnBack.setBorder(BorderFactory.createEmptyBorder(2,6,2,6));
+            btnBack.setForeground(Color.WHITE);
+            btnBack.setFont(new Font("SansSerif", Font.BOLD, 16));
+            btnBack.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnBack.setFocusPainted(false);
+            btnBack.setPreferredSize(new Dimension(36, 28));
+        } catch (Exception ignored) {}
+        btnBack.addActionListener(e -> {
+            try { setSelectedTab(btnChats); } catch (Exception ignored) {}
+            subLabel.setText("Chats");
+            if (chatsList != null) chatsList.refreshList();
+            cardLayout.show(panelContenido, "CHATS_LIST");
+            btnBack.setVisible(false);
+        });
+
+        JPanel leftWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        leftWrap.setOpaque(false);
+        leftWrap.add(btnBack);
+        leftWrap.add(titWrap);
+
+        barraSuperior.add(leftWrap, BorderLayout.WEST);
         add(barraSuperior, BorderLayout.NORTH);
 
         // ======== Contenido con CardLayout ========
-        cardLayout = new CardLayout();
-        panelContenido = new JPanel(cardLayout);
         panelContenido.setBackground(new Color(245, 247, 250));
+
+        // Registrar vistas de Chats: lista y detalle (sin pestañas internas)
+        chatsList = new ChatsListPanel();
+        chatsList.setContextAsUser(currentUser);
+        chatsList.setOnOpenChat(c -> {
+            try { chatPanel.setContextAsUser(currentUser); } catch (Exception ignored) {}
+            chatPanel.openChat(c);
+            try {
+                icai.dtc.isw.dao.EmpresaDAO ed = new icai.dtc.isw.dao.EmpresaDAO();
+                icai.dtc.isw.dao.AnuncioDAO ad = new icai.dtc.isw.dao.AnuncioDAO();
+                icai.dtc.isw.domain.Empresa e = ed.findByNif(c.getEmpresaNif());
+                icai.dtc.isw.domain.Anuncio a = ad.findById(c.getAnuncioId());
+                String empresa = e!=null && e.getEmpresa()!=null ? e.getEmpresa() : String.valueOf(c.getEmpresaNif());
+                String cat = a!=null && a.getCategoria()!=null ? a.getCategoria() : String.valueOf(c.getAnuncioId());
+                subLabel.setText(empresa + " • " + cat);
+            } catch (Exception ex) {
+                subLabel.setText("Chat");
+            }
+            cardLayout.show(panelContenido, "CHAT");
+            if (btnBack != null) btnBack.setVisible(true);
+        });
+        panelContenido.add(chatsList, "CHATS_LIST");
+
+        chatPanel = new ChatsPanel();
+        chatPanel.setContextAsUser(currentUser);
+        panelContenido.add(chatPanel, "CHAT");
 
         // Construimos y guardamos PERFIL (scrolleable)
         perfilPanel = crearPantallaPerfil();
         panelContenido.add(perfilPanel, "PERFIL");
         panelContenido.add(crearPantallaBusquedas(), "BUSQUEDAS");
         panelContenido.add(crearPantalla("⭐ Tus favoritos aparecerán aquí"), "FAVORITOS");
-        panelContenido.add(new ChatsPanel(), "CHATS");
+        ChatsPanel chatsPanel = new ChatsPanel();
+        chatsPanel.setContextAsUser(currentUser.getId());
+        panelContenido.add(chatsPanel, "CHATS");
 
         // Pasamos this al EmpresaPanel para refrescar perfil tras guardar empresa
         panelContenido.add(new EmpresaPanel(currentUser, CATEGORIAS_GENERALES, this), "MI_EMPRESA");
@@ -164,8 +225,16 @@ public class AppMovilMock extends JFrame {
         btnChats.addActionListener(e -> {
             setSelectedTab(btnChats);
             subLabel.setText("💬 Chats");
-            cardLayout.show(panelContenido, "CHATS");
+            cardLayout.show(panelContenido, "CHATS_LIST");
         });
+        // Al abrir "Chats" mostramos la lista (WhatsApp UX)
+        btnChats.addActionListener(e -> {
+            try { setSelectedTab(btnChats); } catch (Exception ignored) {}
+            subLabel.setText("Chats");
+            if (chatsList != null) chatsList.refreshList();
+            cardLayout.show(panelContenido, "CHATS_LIST");
+        });
+
         btnEmpresa.addActionListener(e -> {
             setSelectedTab(btnEmpresa);
             subLabel.setText("🏢 Mi Empresa");
@@ -182,6 +251,8 @@ public class AppMovilMock extends JFrame {
 
         // Arrancamos con Perfil seleccionado
         setSelectedTab(btnPerfil);
+        // Pantalla completa (maximizado) para usar todo el espacio
+        try { setResizable(true); setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH); } catch (Exception ignored) {}
     }
 
     /* ========= API pública para refrescar y navegar a PERFIL ========= */
