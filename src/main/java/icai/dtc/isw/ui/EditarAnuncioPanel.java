@@ -5,6 +5,8 @@ import icai.dtc.isw.domain.Anuncio;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class EditarAnuncioPanel extends JDialog {
 
@@ -23,11 +25,38 @@ public class EditarAnuncioPanel extends JDialog {
         "Tecnología y digital"
     };
 
+    // Mapeo de categorías a especificaciones
+    private static final Map<String, String[]> ESPECIFICAS = new LinkedHashMap<>();
+    static {
+        ESPECIFICAS.put("Hogar y reparaciones", new String[] {
+                "Electricidad", "Fontanería", "Cerrajería", "Pintura",
+                "Carpintería", "Albañilería", "Climatización", "Limpieza", "Jardinería"
+        });
+        ESPECIFICAS.put("Salud, belleza y cuidados", new String[] {
+                "Peluquería", "Estética", "Masajistas", "Fisioterapeutas", "Cuidadores", "Entrenamiento personal"
+        });
+        ESPECIFICAS.put("Educación y cultura", new String[] {
+                "Enseñanza particular", "Academias", "Música", "Traductores e intérpretes"
+        });
+        ESPECIFICAS.put("Eventos y ocio", new String[] {
+                "Organización de eventos", "Catering y repostería", "Fotógrafos y vídeo", "Animación y sonido"
+        });
+        ESPECIFICAS.put("Negocio y administración", new String[] {
+                "Marketing local", "Recursos humanos", "Asesoría y gestoría", "Legal básica", "Formación para comercios"
+        });
+        ESPECIFICAS.put("Logística y movilidad", new String[] {
+                "Repartidores", "Mudanzas y portes", "Mensajería urgente"
+        });
+        ESPECIFICAS.put("Tecnología y digital", new String[] {
+                "Informáticos", "Soporte a comercios", "Diseño web y e-commerce"
+        });
+    }
+
     // Componentes del formulario
     private JTextArea txtDescripcion;
     private JTextField txtPrecio;
     private JComboBox<String> cboCategoria;
-    private JTextField txtEspecificacion;
+    private JComboBox<String> cboEspecificacion;
     private JTextField txtUbicacion;
 
     public EditarAnuncioPanel(Frame parent, Anuncio anuncio, EmpresaPanel empresaPanel) {
@@ -93,12 +122,44 @@ public class EditarAnuncioPanel extends JDialog {
         gbc.gridy = 5;
         formPanel.add(cboCategoria, gbc);
 
-        // Especificación
+        // Especificación (JComboBox que depende de categoría)
         gbc.gridy = 6;
         formPanel.add(createLabel("Especificación:"), gbc);
-        txtEspecificacion = UIUtils.styledTextField(22);
+        cboEspecificacion = UIUtils.styledCombo(new String[]{});
+        cboEspecificacion.setEnabled(false);
         gbc.gridy = 7;
-        formPanel.add(txtEspecificacion, gbc);
+        formPanel.add(cboEspecificacion, gbc);
+
+        // Listener para actualizar especificaciones cuando cambia la categoría
+        cboCategoria.addActionListener(e -> {
+            String categoriaSeleccionada = (String) cboCategoria.getSelectedItem();
+            String especificacionActual = (String) cboEspecificacion.getSelectedItem();
+            cboEspecificacion.removeAllItems();
+
+            if (categoriaSeleccionada != null && ESPECIFICAS.containsKey(categoriaSeleccionada)) {
+                for (String especificacion : ESPECIFICAS.get(categoriaSeleccionada)) {
+                    cboEspecificacion.addItem(especificacion);
+                }
+                cboEspecificacion.setEnabled(true);
+
+                // Intentar seleccionar la especificación anterior si existe en la nueva lista
+                if (especificacionActual != null) {
+                    for (int i = 0; i < cboEspecificacion.getItemCount(); i++) {
+                        if (cboEspecificacion.getItemAt(i).equals(especificacionActual)) {
+                            cboEspecificacion.setSelectedIndex(i);
+                            return;
+                        }
+                    }
+                }
+
+                // Si no se encontró la anterior, seleccionar el primero
+                if (cboEspecificacion.getItemCount() > 0) {
+                    cboEspecificacion.setSelectedIndex(0);
+                }
+            } else {
+                cboEspecificacion.setEnabled(false);
+            }
+        });
 
         // Ubicación
         gbc.gridy = 8;
@@ -134,9 +195,16 @@ public class EditarAnuncioPanel extends JDialog {
         if (anuncio != null) {
             txtDescripcion.setText(anuncio.getDescripcion());
             txtPrecio.setText(String.valueOf(anuncio.getPrecio()));
-            cboCategoria.setSelectedItem(anuncio.getCategoria());
-            txtEspecificacion.setText(anuncio.getEspecificacion());
             txtUbicacion.setText(anuncio.getUbicacion());
+
+            // Primero seleccionar la categoría (esto activará el listener que carga las especificaciones)
+            cboCategoria.setSelectedItem(anuncio.getCategoria());
+
+            // Luego seleccionar la especificación correspondiente
+            // El listener ya habrá poblado el combo de especificaciones
+            SwingUtilities.invokeLater(() -> {
+                cboEspecificacion.setSelectedItem(anuncio.getEspecificacion());
+            });
         }
     }
 
@@ -152,7 +220,7 @@ public class EditarAnuncioPanel extends JDialog {
         String descripcion = txtDescripcion.getText().trim();
         String precioStr = txtPrecio.getText().trim();
         String categoria = (String) cboCategoria.getSelectedItem();
-        String especificacion = txtEspecificacion.getText().trim();
+        String especificacion = (String) cboEspecificacion.getSelectedItem();
         String ubicacion = txtUbicacion.getText().trim();
 
         // Validar campos obligatorios
@@ -184,8 +252,8 @@ public class EditarAnuncioPanel extends JDialog {
             return;
         }
 
-        if (especificacion.isEmpty()) {
-            mostrarError("La especificación es obligatoria.");
+        if (especificacion == null || especificacion.isEmpty()) {
+            mostrarError("Debes seleccionar una especificación.");
             return;
         }
 
