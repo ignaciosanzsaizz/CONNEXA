@@ -44,13 +44,11 @@ public class JVentana extends JFrame {
         // Barra superior con gradiente y título
         JPanel pnlNorte = new UIUtils.GradientBar(new Color(10, 23, 42), new Color(20, 40, 80));
         pnlNorte.setLayout(new BorderLayout());
-        pnlNorte.setBorder(new EmptyBorder(12, 12, 12, 12));
-
+        pnlNorte.setBorder(new EmptyBorder(12, 12, 12, 12)));
         JLabel lblTitulo = new JLabel("CONNEXA", SwingConstants.CENTER);
         lblTitulo.setForeground(Color.WHITE);
         lblTitulo.setFont(new Font("SansSerif", Font.BOLD, 22));
         pnlNorte.add(lblTitulo, BorderLayout.CENTER);
-
         add(pnlNorte, BorderLayout.NORTH);
 
         // Contenedor principal (CardLayout)
@@ -65,14 +63,20 @@ public class JVentana extends JFrame {
                 this::irRegister
         ), PANTALLA_HOME);
 
-        // LOGIN  -> usa tu LoginPanel(BiConsumer<String,String>, Runnable, Runnable)
+        // LOGIN
         root.add(new LoginPanel(
                 // onLogin (email, pass)
                 (email, pass) -> {
                     try {
                         User u = auth.loginUser(email, pass);
                         if (u != null) {
-                            SwingUtilities.invokeLater(() -> new AppMovilMock(u).setVisible(true));
+                            SwingUtilities.invokeLater(() -> {
+                                AppMovilMock app = new AppMovilMock(u);
+                                // FORMA PANTALLA COMPLETA
+                                app.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                                app.setResizable(false);
+                                app.setVisible(true);
+                            });
                             dispose();
                         } else {
                             JOptionPane.showMessageDialog(this, "Credenciales incorrectas.", "Login", JOptionPane.ERROR_MESSAGE);
@@ -87,10 +91,9 @@ public class JVentana extends JFrame {
                 this::irRegister
         ), PANTALLA_LOGIN);
 
-        // REGISTER -> usa tu RegisterPanel(Consumer<String[]>, Runnable)
+        // REGISTER
         root.add(new RegisterPanel(
-                // onRegister -> values[0]=email, values[1]=user, values[2]=pass
-                (values) -> {
+                values -> {
                     String email = values[0], user = values[1], pass = values[2];
                     try {
                         String err = auth.registerUser(email, user, pass);
@@ -106,22 +109,20 @@ public class JVentana extends JFrame {
                         JOptionPane.showMessageDialog(this, "Error de comunicación con el servidor.", "Registro", JOptionPane.ERROR_MESSAGE);
                     }
                 },
-                // onBack
                 this::irHome
         ), PANTALLA_REGISTER);
 
-        // REGISTER_OK (si lo usas en tu flujo)
+        // REGISTER_OK
         root.add(new RegisterOkPanel(() -> cards.show(root, PANTALLA_HOME)), PANTALLA_REGISTER_OK);
 
-        
-        // Tamaño y arranque
-        setSize(360, 640);
+        // AJUSTE PANTALLA COMPLETA
+        setExtendedState(JFrame.MAXIMIZED_BOTH); // maximizada
         setResizable(false);
         setLocationRelativeTo(null);
         cards.show(root, PANTALLA_HOME);
     }
 
-    /* ------------ Navegación rápida ------------ */
+    // ------------ Navegación rápida ------------
     private void irHome()     { cards.show(root, PANTALLA_HOME); }
     private void irLogin()    { cards.show(root, PANTALLA_LOGIN); }
     private void irRegister() { cards.show(root, PANTALLA_REGISTER); }
