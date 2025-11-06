@@ -167,5 +167,40 @@ public class AnuncioDAO {
         a.setActualizadoEn(rs.getTimestamp("actualizado_en"));
         return a;
     }
+
+
+    /**
+     * Busca anuncios por categoría y especificación.
+     * Si un parámetro es null, no se filtra por ese campo.
+     */
+
+    public List<Anuncio> search(String categoria, String esp) {
+        Connection con = ConnectionDAO.getInstance().getConnection();
+        String sql =
+            "SELECT id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa " +
+            "FROM anuncios " +
+            "WHERE (? IS NULL OR categoria = ?) " +
+            "  AND (? IS NULL OR especificacion = ?) " +
+            "ORDER BY creado_en DESC";
+        List<Anuncio> out = new ArrayList<>();
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, categoria); ps.setString(2, categoria);
+            ps.setString(3, esp);       ps.setString(4, esp);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Anuncio a = new Anuncio();
+                    a.setId(rs.getString("id"));
+                    a.setDescripcion(rs.getString("descripcion"));
+                    a.setPrecio(rs.getDouble("precio"));
+                    a.setCategoria(rs.getString("categoria"));
+                    a.setEspecificacion(rs.getString("especificacion"));
+                    a.setUbicacion(rs.getString("ubicacion"));
+                    a.setNifEmpresa(rs.getString("nif_empresa"));
+                    out.add(a);
+                }
+            }
+        } catch (SQLException ex) { ex.printStackTrace(); }
+        return out;
+    }
 }
 

@@ -2,6 +2,8 @@ package icai.dtc.isw.ui;
 
 import icai.dtc.isw.domain.Empresa;
 import icai.dtc.isw.domain.User;
+import icai.dtc.isw.domain.Anuncio;
+import icai.dtc.isw.controler.BusquedasControler;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -11,9 +13,16 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * AppMovilMock
+ * - Pestaña "Búsquedas" migrada a tarjetas estilo "Mi Empresa"
+ * - Filtros fijos arriba (sin scroll) y scroll SOLO en resultados
+ * - Sin óvalos en categoría/especificación (solo texto coloreado)
+ */
 public class AppMovilMock extends JFrame {
 
     // === Datos / constantes existentes ===
@@ -69,6 +78,9 @@ public class AppMovilMock extends JFrame {
     private JComboBox<String> cboUbicacion;
     private JComboBox<String> cboCalidad;
 
+    // --- Búsquedas ---
+    private final BusquedasControler busquedasCtrl = new BusquedasControler();
+    private JPanel contenedorLista; // contenedor vertical con tarjetas
 
     public AppMovilMock(User user) {
         super("CONNEXA APP");
@@ -374,7 +386,6 @@ public class AppMovilMock extends JFrame {
         filtrosCard.add(lblEspecifico, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboEspecifico, gbc);
 
-
         //Ubicación
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0;
         JLabel lblUbicacion = new JLabel("Ubicacion");
@@ -384,7 +395,6 @@ public class AppMovilMock extends JFrame {
         cboUbicacion.setSelectedIndex(1); // por defecto "1 km"
         filtrosCard.add(lblUbicacion, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboUbicacion, gbc);
-
 
         //Calidad
         gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0;
@@ -396,24 +406,27 @@ public class AppMovilMock extends JFrame {
         filtrosCard.add(lblCalidad, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboCalidad, gbc);
 
+        // ====== Resultados (contenedor vertical con tarjetas) ======
         JPanel resultadosCard = createCardPanel();
         resultadosCard.setLayout(new BorderLayout());
         resultadosCard.setPreferredSize(new Dimension(320, 420));
 
-        DefaultListModel<String> model = new DefaultListModel<>();
-        JList<String> listaResultados = new JList<>(model);
-        listaResultados.setCellRenderer(new UIUtils.CleanListCellRenderer());
-        JScrollPane scroll = new JScrollPane(listaResultados);
+        contenedorLista = new JPanel();
+        contenedorLista.setLayout(new BoxLayout(contenedorLista, BoxLayout.Y_AXIS));
+        contenedorLista.setBackground(new Color(245, 247, 250));
+
+        JScrollPane scroll = new JScrollPane(contenedorLista);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         resultadosCard.add(scroll, BorderLayout.CENTER);
 
+        // Composición final: filtros fijos arriba, resultados con scroll en el centro
         contenedor.add(filtrosCard, BorderLayout.NORTH);
-        contenedor.add(Box.createVerticalStrut(10), BorderLayout.CENTER);
-        contenedor.add(resultadosCard, BorderLayout.SOUTH);
+        contenedor.add(resultadosCard, BorderLayout.CENTER);
 
+        // === Listeners filtros ===
         cboGeneral.addActionListener(e -> {
             String general = (String) cboGeneral.getSelectedItem();
-            model.clear();
+            contenedorLista.removeAll();
             cboEspecifico.removeAllItems();
             if (general != null && ESPECIFICAS.containsKey(general)) {
                 for (String s : ESPECIFICAS.get(general)) cboEspecifico.addItem(s);
@@ -422,16 +435,90 @@ public class AppMovilMock extends JFrame {
             } else {
                 cboEspecifico.setEnabled(false);
             }
+            // tras cambiar la categoría, recargamos resultados
+            recargarResultados((String) cboGeneral.getSelectedItem(),
+                    cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null);
         });
 
         cboEspecifico.addActionListener(e -> {
             if (!cboEspecifico.isEnabled()) return;
-            model.clear();
+            contenedorLista.removeAll();
+            recargarResultados((String) cboGeneral.getSelectedItem(),
+                    (String) cboEspecifico.getSelectedItem());
         });
 
+        cboUbicacion.addActionListener(e -> recargarResultados(
+                (String) cboGeneral.getSelectedItem(),
+                cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null
+        ));
+
+        cboCalidad.addActionListener(e -> recargarResultados(
+                (String) cboGeneral.getSelectedItem(),
+                cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null
+        ));
+
         if (cboGeneral.getItemCount() > 0) cboGeneral.setSelectedIndex(0);
+        // primera carga de resultados con los valores por defecto
+        recargarResultados((String) cboGeneral.getSelectedItem(),
+                cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null);
 
         return contenedor;
+    }
+
+    private void recargarResultados(String categoria, String trabajo) {
+        // Calidad (⭐..⭐⭐⭐⭐⭐) → índice 0..4  => mínimo 1..5
+        int calidadMin = cboCalidad.getSelectedIndex() + 1;
+
+        // Radio en km a partir del combo (500 m, 1 km, 2 km, 5 km, 10 km)
+        int radioKm;
+        switch (cboUbicacion.getSelectedIndex()) {
+            case 0 -> radioKm = 0;  // 500 m ~ 0.5 km (ajusta si tu backend usa decimales)
+            case 1 -> radioKm = 1;
+            case 2 -> radioKm = 2;
+            case 3 -> radioKm = 5;
+            default -> radioKm = 10;
+        }
+
+        // Si tu backend necesita un "origen" (lat/lon o dirección), pásalo aquí.
+        // Por ahora usamos null; el controler debería manejar ese caso.
+        String origen = null;
+
+        contenedorLista.removeAll();
+        try {
+            var lista = busquedasCtrl.buscar(
+                    categoria, trabajo, calidadMin, origen, radioKm
+            );
+            if (lista == null || lista.isEmpty()) {
+                JLabel empty = new JLabel("Sin resultados para los filtros actuales");
+                empty.setForeground(new Color(120,130,150));
+                empty.setBorder(new EmptyBorder(12,16,12,16));
+                contenedorLista.add(empty);
+            } else {
+                for (Anuncio a : lista) {
+                    JPanel tarjeta = crearTarjetaResultado(a);
+                    // doble clic para ver detalle
+                    tarjeta.addMouseListener(new MouseAdapter() {
+                        @Override public void mouseClicked(MouseEvent e) {
+                            if (e.getClickCount() == 2) {
+                                mostrarDetalleAnuncio(a, tarjeta);
+                            }
+                        }
+                    });
+                    contenedorLista.add(tarjeta);
+                    contenedorLista.add(Box.createRigidArea(new Dimension(0, 10)));
+                }
+            }
+            contenedorLista.revalidate();
+            contenedorLista.repaint();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JLabel err = new JLabel("Error al cargar resultados");
+            err.setForeground(new Color(170,60,60));
+            err.setBorder(new EmptyBorder(12,16,12,16));
+            contenedorLista.add(err);
+            contenedorLista.revalidate();
+            contenedorLista.repaint();
+        }
     }
 
     private void mostrarFormularioEmpresa(Empresa emp) {
@@ -584,6 +671,10 @@ public class AppMovilMock extends JFrame {
         catch (Exception e) { return null; }
     }
 
+    private static String safe(Object s, String def) {
+        return (s != null && !String.valueOf(s).isBlank()) ? String.valueOf(s) : def;
+    }
+
     // En caso de que alguien aún llame a esto, devolvemos un 1x1 vacío
     private ImageIcon loadIcon(String path, int targetH) {
         java.net.URL url = getClass().getResource(path);
@@ -598,5 +689,116 @@ public class AppMovilMock extends JFrame {
         int newW = Math.max(1, Math.round(w * scale));
         Image img = raw.getImage().getScaledInstance(newW, targetH, Image.SCALE_SMOOTH);
         return new ImageIcon(img);
+    }
+
+    // --------- Tarjeta de resultado (igual estilo que "Mi Empresa") ----------
+    private JPanel crearTarjetaResultado(Anuncio anuncio) {
+        JPanel tarjeta = new JPanel(new BorderLayout(12, 8));
+        tarjeta.setBackground(new Color(250, 252, 255));
+        tarjeta.setBorder(BorderFactory.createCompoundBorder(
+                new UIUtils.RoundedBorder(12, new Color(220, 230, 245)),
+                new EmptyBorder(16, 16, 16, 16)
+        ));
+        tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+
+        // Panel izquierdo con la información principal
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBackground(new Color(250, 252, 255));
+
+        // Línea “Categoría · Trabajo” (texto coloreado, sin óvalos)
+        String cat  = anuncio.getCategoria()     != null ? anuncio.getCategoria()      : "";
+        String spec = anuncio.getEspecificacion()!= null ? anuncio.getEspecificacion() : "";
+        String linea = spec.isBlank() ? cat : (cat + " · " + spec);
+
+        JLabel lblLinea = new JLabel(linea);
+        lblLinea.setFont(new Font("SansSerif", Font.BOLD, 11));
+        lblLinea.setForeground(new Color(80, 120, 200));
+        lblLinea.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Descripción (destacada)
+        String desc = anuncio.getDescripcion() != null ? anuncio.getDescripcion() : "";
+        String descCorta = desc.length() > 80 ? desc.substring(0, 80) + "..." : desc;
+        JLabel lblDescripcion = new JLabel("<html><b>" + descCorta + "</b></html>");
+        lblDescripcion.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        lblDescripcion.setForeground(new Color(30, 40, 60));
+        lblDescripcion.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Ubicación
+        String ubi = anuncio.getUbicacion() != null ? anuncio.getUbicacion() : "";
+        JLabel lblUbicacion = new JLabel("📍 " + ubi);
+        lblUbicacion.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblUbicacion.setForeground(new Color(90, 100, 120));
+        lblUbicacion.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Fechas (si existen)
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+        if (anuncio.getCreadoEn() != null) {
+            JLabel lblPub = new JLabel("🕒 Publicado: " + sdf.format(anuncio.getCreadoEn()));
+            lblPub.setFont(new Font("SansSerif", Font.ITALIC, 11));
+            lblPub.setForeground(new Color(120, 130, 150));
+            lblPub.setAlignmentX(Component.LEFT_ALIGNMENT);
+            infoPanel.add(lblPub);
+        }
+        if (anuncio.getActualizadoEn() != null) {
+            JLabel lblUpd = new JLabel("🔄 Actualizado: " + sdf.format(anuncio.getActualizadoEn()));
+            lblUpd.setFont(new Font("SansSerif", Font.ITALIC, 11));
+            lblUpd.setForeground(new Color(120, 130, 150));
+            lblUpd.setAlignmentX(Component.LEFT_ALIGNMENT);
+            infoPanel.add(lblUpd);
+        }
+
+        // Ensamble izquierda
+        infoPanel.add(lblLinea);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        infoPanel.add(lblDescripcion);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        infoPanel.add(lblUbicacion);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+
+        // Panel derecho con precio
+        JPanel derecha = new JPanel();
+        derecha.setLayout(new BoxLayout(derecha, BoxLayout.Y_AXIS));
+        derecha.setBackground(new Color(250, 252, 255));
+        derecha.setPreferredSize(new Dimension(130, 100));
+
+        String precioStr = (anuncio.getPrecio() != null) ? String.format("%.2f €", anuncio.getPrecio()) : "";
+        JLabel lblPrecio = new JLabel(precioStr);
+        lblPrecio.setFont(new Font("SansSerif", Font.BOLD, 22));
+        lblPrecio.setForeground(new Color(20, 120, 80));
+        lblPrecio.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        derecha.add(Box.createVerticalStrut(2));
+        derecha.add(lblPrecio);
+        derecha.add(Box.createVerticalGlue());
+
+        tarjeta.add(infoPanel, BorderLayout.CENTER);
+        tarjeta.add(derecha, BorderLayout.EAST);
+
+        // Doble clic para ver detalle
+        tarjeta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        return tarjeta;
+    }
+
+    private void mostrarDetalleAnuncio(Anuncio a, Component parent) {
+        String precio = "";
+        try {
+            if (a.getPrecio() != null) {
+                double p = ((Number)a.getPrecio()).doubleValue();
+                if (p > 0) precio = String.format("Precio: %.2f €\n", p);
+            }
+        } catch (Throwable ignored) {}
+
+        JOptionPane.showMessageDialog(
+                SwingUtilities.getWindowAncestor(parent),
+                "Descripción: " + safe(a.getDescripcion(), "") + "\n" +
+                        "Categoría: " + safe(a.getCategoria(), "") + "\n" +
+                        "Trabajo: " + safe(a.getEspecificacion(), "") + "\n" +
+                        precio +
+                        "Ubicación: " + safe(a.getUbicacion(), ""),
+                "Detalle del anuncio",
+                JOptionPane.INFORMATION_MESSAGE
+        );
     }
 }
