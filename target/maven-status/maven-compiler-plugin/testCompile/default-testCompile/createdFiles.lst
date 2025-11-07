@@ -1,0 +1,7 @@
+icai\dtc\isw\domain\UserTest.class
+icai\dtc\isw\domain\EmpresaTest.class
+icai\dtc\isw\domain\AnuncioTest.class
+icai\dtc\isw\domain\CustomerTest.class
+icai\dtc\isw\domain\MensajeChatTest.class
+icai\dtc\isw\dao\CustomerDAOTest.class
+icai\dtc\isw\domain\ChatTest.class
