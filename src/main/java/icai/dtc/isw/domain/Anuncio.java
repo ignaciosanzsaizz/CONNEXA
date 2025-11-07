@@ -13,6 +13,7 @@ public class Anuncio implements Serializable {
     private String especificacion;
     private String ubicacion;
     private String nifEmpresa;      // FK a empresa.nif
+    private String empresaEmail;    // Email de la empresa (para chats)
     private Timestamp creadoEn;
     private Timestamp actualizadoEn;
 
@@ -50,6 +51,11 @@ public class Anuncio implements Serializable {
 
     public String getNifEmpresa() { return nifEmpresa; }
     public void setNifEmpresa(String nifEmpresa) { this.nifEmpresa = nifEmpresa; }
+
+    public String getEmpresaEmail() { return empresaEmail; }
+    public void setEmpresaEmail(String empresaEmail) { this.empresaEmail = empresaEmail; }
+
+    public String getEmpresaNif() { return nifEmpresa; }  // Alias para compatibilidad
 
     public Timestamp getCreadoEn() { return creadoEn; }
     public void setCreadoEn(Timestamp creadoEn) { this.creadoEn = creadoEn; }

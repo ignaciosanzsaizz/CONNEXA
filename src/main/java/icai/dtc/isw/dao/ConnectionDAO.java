@@ -15,10 +15,8 @@ public class ConnectionDAO {
 	    try {
 	    	con = DriverManager.getConnection(url, user, password);
 	    }catch (SQLException ex) {
-
             System.out.println(ex.getMessage());
         }
-	    
 	}
 	
 	public static ConnectionDAO getInstance() {
@@ -29,6 +27,20 @@ public class ConnectionDAO {
 	}
 	
 	public Connection getConnection() {
+		try {
+			// Verificar si la conexión está cerrada o es inválida
+			if (con == null || con.isClosed() || !con.isValid(2)) {
+				System.out.println("Conexión cerrada o inválida, creando nueva conexión...");
+				// Crear nueva conexión
+				String url = PropertiesISW.getInstance().getProperty("ddbb.connection");
+				String user = PropertiesISW.getInstance().getProperty("ddbb.user");
+				String password = PropertiesISW.getInstance().getProperty("ddbb.password");
+				con = DriverManager.getConnection(url, user, password);
+			}
+		} catch (SQLException ex) {
+			System.err.println("Error al verificar/crear conexión: " + ex.getMessage());
+			ex.printStackTrace();
+		}
 		return con;
 	}
 

@@ -56,8 +56,8 @@ public class EmpresaDAO {
     public boolean upsert(Empresa emp) {
         Connection con = ConnectionDAO.getInstance().getConnection();
         String sql = """
-            INSERT INTO empresa (nif, mail, empresa, sector, ubicacion)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO empresa (nif, mail, empresa, sector, ubicacion, calidad, num_trabajos, verificado)
+            VALUES (?, ?, ?, ?, ?, NULL, 0, false)
             ON CONFLICT (nif) DO UPDATE
             SET mail      = EXCLUDED.mail,
                 empresa   = EXCLUDED.empresa,

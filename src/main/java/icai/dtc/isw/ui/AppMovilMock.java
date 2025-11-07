@@ -3,7 +3,9 @@ package icai.dtc.isw.ui;
 import icai.dtc.isw.domain.Empresa;
 import icai.dtc.isw.domain.User;
 import icai.dtc.isw.domain.Anuncio;
+import icai.dtc.isw.domain.Chat;
 import icai.dtc.isw.controler.BusquedasControler;
+import icai.dtc.isw.controler.ChatControler;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -128,7 +130,7 @@ public class AppMovilMock extends JFrame {
         panelContenido.add(perfilPanel, "PERFIL");
         panelContenido.add(crearPantallaBusquedas(), "BUSQUEDAS");
         panelContenido.add(crearPantalla("⭐ Tus favoritos aparecerán aquí"), "FAVORITOS");
-        panelContenido.add(new ChatsPanel(), "CHATS");
+        panelContenido.add(new ChatsPanel(currentUser), "CHATS");
 
         // Pasamos this al EmpresaPanel para refrescar perfil tras guardar empresa
         panelContenido.add(new EmpresaPanel(currentUser, CATEGORIAS_GENERALES, this), "MI_EMPRESA");
@@ -488,46 +490,71 @@ public class AppMovilMock extends JFrame {
             default -> radioKm = 10;
         }
 
-        // Si tu backend necesita un "origen" (lat/lon o dirección), pásalo aquí.
-        // Por ahora usamos null; el controler debería manejar ese caso.
         String origen = null;
 
         contenedorLista.removeAll();
-        try {
-            var lista = busquedasCtrl.buscar(
-                    categoria, trabajo, calidadMin, origen, radioKm
-            );
-            if (lista == null || lista.isEmpty()) {
-                JLabel empty = new JLabel("Sin resultados para los filtros actuales");
-                empty.setForeground(new Color(120,130,150));
-                empty.setBorder(new EmptyBorder(12,16,12,16));
-                contenedorLista.add(empty);
-            } else {
-                for (Anuncio a : lista) {
-                    JPanel tarjeta = crearTarjetaResultado(a);
-                    // doble clic para ver detalle
-                    tarjeta.addMouseListener(new MouseAdapter() {
-                        @Override public void mouseClicked(MouseEvent e) {
-                            if (e.getClickCount() == 2) {
-                                mostrarDetalleAnuncio(a, tarjeta);
-                            }
+
+        // Mostrar mensaje de carga
+        JLabel loading = new JLabel("⏳ Cargando resultados...", SwingConstants.CENTER);
+        loading.setFont(new Font("SansSerif", Font.ITALIC, 14));
+        loading.setForeground(new Color(100, 120, 150));
+        contenedorLista.add(loading);
+        contenedorLista.revalidate();
+        contenedorLista.repaint();
+
+        // Ejecutar búsqueda en background
+        SwingWorker<java.util.List<Anuncio>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected java.util.List<Anuncio> doInBackground() {
+                System.out.println("=== BÚSQUEDA ===");
+                System.out.println("Categoría: " + categoria);
+                System.out.println("Trabajo: " + trabajo);
+
+                return busquedasCtrl.buscar(categoria, trabajo, calidadMin, origen, radioKm);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    var lista = get();
+                    contenedorLista.removeAll();
+
+                    System.out.println("Resultados encontrados: " + (lista != null ? lista.size() : 0));
+
+                    if (lista == null || lista.isEmpty()) {
+                        JLabel empty = new JLabel("Sin resultados para los filtros actuales");
+                        empty.setForeground(new Color(120,130,150));
+                        empty.setBorder(new EmptyBorder(12,16,12,16));
+                        contenedorLista.add(empty);
+                    } else {
+                        for (Anuncio a : lista) {
+                            JPanel tarjeta = crearTarjetaResultado(a);
+                            tarjeta.addMouseListener(new MouseAdapter() {
+                                @Override public void mouseClicked(MouseEvent e) {
+                                    if (e.getClickCount() == 2) {
+                                        mostrarDetalleAnuncio(a, tarjeta);
+                                    }
+                                }
+                            });
+                            contenedorLista.add(tarjeta);
+                            contenedorLista.add(Box.createRigidArea(new Dimension(0, 10)));
                         }
-                    });
-                    contenedorLista.add(tarjeta);
-                    contenedorLista.add(Box.createRigidArea(new Dimension(0, 10)));
+                    }
+                    contenedorLista.revalidate();
+                    contenedorLista.repaint();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    contenedorLista.removeAll();
+                    JLabel err = new JLabel("Error al cargar resultados: " + ex.getMessage());
+                    err.setForeground(new Color(170,60,60));
+                    err.setBorder(new EmptyBorder(12,16,12,16));
+                    contenedorLista.add(err);
+                    contenedorLista.revalidate();
+                    contenedorLista.repaint();
                 }
             }
-            contenedorLista.revalidate();
-            contenedorLista.repaint();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JLabel err = new JLabel("Error al cargar resultados");
-            err.setForeground(new Color(170,60,60));
-            err.setBorder(new EmptyBorder(12,16,12,16));
-            contenedorLista.add(err);
-            contenedorLista.revalidate();
-            contenedorLista.repaint();
-        }
+        };
+        worker.execute();
     }
 
     private void mostrarFormularioEmpresa(Empresa emp) {
@@ -705,100 +732,132 @@ public class AppMovilMock extends JFrame {
         return new ImageIcon(img);
     }
 
-    // --------- Tarjeta de resultado (igual estilo que "Mi Empresa") ----------
+    // --------- Tarjeta de resultado con GridBagLayout ----------
     private JPanel crearTarjetaResultado(Anuncio anuncio) {
-        JPanel tarjeta = new JPanel(new BorderLayout(12, 8));
-        tarjeta.setBackground(new Color(250, 252, 255));
-        tarjeta.setBorder(BorderFactory.createCompoundBorder(
+        JPanel card = new JPanel(new GridBagLayout());
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
                 new UIUtils.RoundedBorder(12, new Color(220, 230, 245)),
-                new EmptyBorder(16, 16, 16, 16)
+                new EmptyBorder(12, 16, 12, 16)
         ));
-        tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
 
-        // ----- Panel izquierdo: información del anuncio -----
-        JPanel infoPanel = new JPanel();
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBackground(new Color(250, 252, 255));
+        // Altura MÍNIMA de 130px, ancho suficiente para que NUNCA se monten los botones
+        card.setPreferredSize(new Dimension(900, 130));
+        card.setMinimumSize(new Dimension(600, 130));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
 
-        // Línea “Categoría · Trabajo”
-        String cat  = anuncio.getCategoria()      != null ? anuncio.getCategoria()      : "";
+        // ========== PANEL IZQUIERDO: Información del anuncio ==========
+        GridBagConstraints left = new GridBagConstraints();
+        left.gridx = 0;
+        left.gridy = 0;
+        left.anchor = GridBagConstraints.NORTHWEST;
+        left.insets = new Insets(4, 4, 4, 16);
+        left.weightx = 1.0;
+        left.weighty = 1.0;
+        left.fill = GridBagConstraints.BOTH;
+
+        JPanel dataPanel = new JPanel();
+        dataPanel.setOpaque(false);
+        dataPanel.setLayout(new BoxLayout(dataPanel, BoxLayout.Y_AXIS));
+
+        // Categoría · Especificación
+        String cat = anuncio.getCategoria() != null ? anuncio.getCategoria() : "";
         String spec = anuncio.getEspecificacion() != null ? anuncio.getEspecificacion() : "";
         String linea = (spec.isBlank() ? cat : (cat + " · " + spec));
 
-        JLabel lblLinea = new JLabel(linea);
-        lblLinea.setFont(new Font("SansSerif", Font.BOLD, 11));
-        lblLinea.setForeground(new Color(80, 120, 200));
-        lblLinea.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel lblCategoria = new JLabel(linea);
+        lblCategoria.setFont(new Font("SansSerif", Font.BOLD, 11));
+        lblCategoria.setForeground(new Color(80, 120, 200));
+        lblCategoria.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Descripción
+        // Descripción (título principal)
         String desc = anuncio.getDescripcion() != null ? anuncio.getDescripcion() : "";
-        String descCorta = desc.length() > 80 ? desc.substring(0, 80) + "..." : desc;
-        JLabel lblDescripcion = new JLabel("<html><b>" + descCorta + "</b></html>");
-        lblDescripcion.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        lblDescripcion.setForeground(new Color(30, 40, 60));
-        lblDescripcion.setAlignmentX(Component.LEFT_ALIGNMENT);
+        String descCorta = desc.length() > 70 ? desc.substring(0, 70) + "..." : desc;
+        JLabel lblTitulo = new JLabel("<html><b>" + descCorta + "</b></html>");
+        lblTitulo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        lblTitulo.setForeground(new Color(30, 40, 60));
+        lblTitulo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Ubicación
         String ubi = anuncio.getUbicacion() != null ? anuncio.getUbicacion() : "";
         JLabel lblUbicacion = new JLabel("📍 " + ubi);
-        lblUbicacion.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblUbicacion.setFont(new Font("SansSerif", Font.PLAIN, 11));
         lblUbicacion.setForeground(new Color(90, 100, 120));
         lblUbicacion.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Fechas (si existen)
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-        if (anuncio.getCreadoEn() != null) {
-            JLabel lblPub = new JLabel("🕒 Publicado: " + sdf.format(anuncio.getCreadoEn()));
-            lblPub.setFont(new Font("SansSerif", Font.ITALIC, 11));
-            lblPub.setForeground(new Color(120, 130, 150));
-            lblPub.setAlignmentX(Component.LEFT_ALIGNMENT);
-            infoPanel.add(lblPub);
-        }
-        if (anuncio.getActualizadoEn() != null) {
-            JLabel lblUpd = new JLabel("🔄 Actualizado: " + sdf.format(anuncio.getActualizadoEn()));
-            lblUpd.setFont(new Font("SansSerif", Font.ITALIC, 11));
-            lblUpd.setForeground(new Color(120, 130, 150));
-            lblUpd.setAlignmentX(Component.LEFT_ALIGNMENT);
-            infoPanel.add(lblUpd);
-        }
+        dataPanel.add(lblCategoria);
+        dataPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        dataPanel.add(lblTitulo);
+        dataPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        dataPanel.add(lblUbicacion);
+        dataPanel.add(Box.createVerticalGlue());
 
-        infoPanel.add(lblLinea);
-        infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
-        infoPanel.add(lblDescripcion);
-        infoPanel.add(Box.createRigidArea(new Dimension(0, 6)));
-        infoPanel.add(lblUbicacion);
-        infoPanel.add(Box.createVerticalGlue());
+        card.add(dataPanel, left);
 
-        // ----- Panel derecho: precio + botón "Ver detalles" -----
-        JPanel derecha = new JPanel();
-        derecha.setLayout(new BoxLayout(derecha, BoxLayout.Y_AXIS));
-        derecha.setBackground(new Color(250, 252, 255));
-        derecha.setPreferredSize(new Dimension(150, 100));
+        // ========== PANEL DERECHO: Precio + Botones verticales ==========
+        GridBagConstraints right = new GridBagConstraints();
+        right.gridx = 1;
+        right.gridy = 0;
+        right.anchor = GridBagConstraints.NORTHEAST;
+        right.insets = new Insets(4, 8, 4, 4);
+        right.fill = GridBagConstraints.NONE;
+        right.weightx = 0;
+        right.weighty = 0;
 
+        JPanel rightPanel = new JPanel();
+        rightPanel.setOpaque(false);
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+
+        // Precio grande y alineado a la derecha
         String precioStr = (anuncio.getPrecio() != null) ? String.format("%.2f €", anuncio.getPrecio()) : "";
         JLabel lblPrecio = new JLabel(precioStr);
-        lblPrecio.setFont(new Font("SansSerif", Font.BOLD, 22));
+        lblPrecio.setFont(new Font("SansSerif", Font.BOLD, 20));
         lblPrecio.setForeground(new Color(20, 120, 80));
-        lblPrecio.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblPrecio.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        rightPanel.add(lblPrecio);
+        rightPanel.add(Box.createVerticalStrut(10));
 
+        // Botón Ver detalles
         JButton btnDetalles = UIUtils.primaryButton("Ver detalles");
-        btnDetalles.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnDetalles.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        btnDetalles.setPreferredSize(new Dimension(145, 34));
+        btnDetalles.setMinimumSize(new Dimension(145, 34));
+        btnDetalles.setMaximumSize(new Dimension(145, 34));
         btnDetalles.addActionListener(e -> showDetalleAnuncio(anuncio));
+        rightPanel.add(btnDetalles);
+        rightPanel.add(Box.createVerticalStrut(8));
 
-        derecha.add(Box.createVerticalStrut(2));
-        derecha.add(lblPrecio);
-        derecha.add(Box.createVerticalStrut(10));
-        derecha.add(btnDetalles);
-        derecha.add(Box.createVerticalGlue());
+        // Botón Chatear (solo si no es el propio anuncio)
+        boolean esPropio = anuncio.getEmpresaNif() != null && anuncio.getEmpresaNif().equals(obtenerNifEmpresaActual());
 
-        // Ensamblado
-        tarjeta.add(infoPanel, BorderLayout.CENTER);
-        tarjeta.add(derecha, BorderLayout.EAST);
+        // DEBUG: Ver por qué no aparece el botón
+        System.out.println("DEBUG Anuncio ID: " + anuncio.getId());
+        System.out.println("  - NIF Anuncio: " + anuncio.getEmpresaNif());
+        System.out.println("  - NIF Usuario actual: " + obtenerNifEmpresaActual());
+        System.out.println("  - Es propio: " + esPropio);
+        System.out.println("  - Email empresa: " + anuncio.getEmpresaEmail());
+        System.out.println("  - Mostrar botón: " + (!esPropio && anuncio.getEmpresaEmail() != null));
 
-        // Solo estilo de cursor
-        tarjeta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        if (!esPropio && anuncio.getEmpresaEmail() != null) {
+            JButton btnChat = UIUtils.secondaryButton("💬 Chatear");
+            btnChat.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            btnChat.setPreferredSize(new Dimension(145, 34));
+            btnChat.setMinimumSize(new Dimension(145, 34));
+            btnChat.setMaximumSize(new Dimension(145, 34));
+            btnChat.setFont(new Font("SansSerif", Font.BOLD, 12));
+            btnChat.addActionListener(e -> iniciarChatConAnuncio(anuncio));
+            rightPanel.add(btnChat);
+            System.out.println("  → ✅ BOTÓN AGREGADO");
+        } else {
+            System.out.println("  → ❌ BOTÓN NO AGREGADO");
+        }
 
-        return tarjeta;
+        card.add(rightPanel, right);
+
+        // Cursor de mano para toda la tarjeta
+        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        return card;
     }
 
     // Muestra el panel de detalle del anuncio sustituyendo la pantalla de búsquedas
@@ -824,16 +883,121 @@ public class AppMovilMock extends JFrame {
             }
         } catch (Throwable ignored) {}
 
-        JOptionPane.showMessageDialog(
-                SwingUtilities.getWindowAncestor(parent),
-                "Descripción: " + safe(a.getDescripcion(), "") + "\n" +
-                        "Categoría: " + safe(a.getCategoria(), "") + "\n" +
-                        "Trabajo: " + safe(a.getEspecificacion(), "") + "\n" +
-                        precio +
-                        "Ubicación: " + safe(a.getUbicacion(), ""),
-                "Detalle del anuncio",
-                JOptionPane.INFORMATION_MESSAGE
+        // Panel personalizado con detalles
+        JPanel detallePanel = new JPanel();
+        detallePanel.setLayout(new BoxLayout(detallePanel, BoxLayout.Y_AXIS));
+        detallePanel.setBackground(Color.WHITE);
+        detallePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        JTextArea txtDetalle = new JTextArea(
+                "Descripción: " + safe(a.getDescripcion(), "") + "\n\n" +
+                "Categoría: " + safe(a.getCategoria(), "") + "\n" +
+                "Trabajo: " + safe(a.getEspecificacion(), "") + "\n" +
+                precio +
+                "Ubicación: " + safe(a.getUbicacion(), "")
         );
+        txtDetalle.setEditable(false);
+        txtDetalle.setOpaque(false);
+        txtDetalle.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        txtDetalle.setForeground(new Color(30, 33, 40));
+
+        detallePanel.add(txtDetalle);
+
+        // Botón para contactar (solo si no es el propio anuncio del usuario)
+        boolean esPropio = a.getEmpresaNif() != null && a.getEmpresaNif().equals(obtenerNifEmpresaActual());
+
+        Object[] options;
+        if (esPropio) {
+            options = new Object[]{"Cerrar"};
+        } else {
+            options = new Object[]{"Contactar", "Cerrar"};
+        }
+
+        int opcion = JOptionPane.showOptionDialog(
+                SwingUtilities.getWindowAncestor(parent),
+                detallePanel,
+                "Detalle del anuncio",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+
+        // Si eligió "Contactar" (índice 0 cuando no es propio)
+        if (!esPropio && opcion == 0) {
+            iniciarChatConAnuncio(a);
+        }
+    }
+
+    private String obtenerNifEmpresaActual() {
+        EmpresaApi empApi = new EmpresaApi();
+        Empresa emp = empApi.getEmpresa(safeEmail());
+        return emp != null ? emp.getNif() : null;
+    }
+
+    private void iniciarChatConAnuncio(Anuncio a) {
+        // Validaciones
+        if (a == null) {
+            JOptionPane.showMessageDialog(this, "Anuncio no válido", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (a.getEmpresaEmail() == null || a.getEmpresaEmail().trim().isEmpty()) {
+            System.err.println("Error: empresaEmail es null o vacío para anuncio ID: " + a.getId());
+            System.err.println("Anuncio NIF: " + a.getNifEmpresa());
+            JOptionPane.showMessageDialog(this,
+                "No se puede contactar con esta empresa.\nLa empresa no tiene email configurado.",
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (a.getId() == null || a.getId().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Anuncio sin ID válido", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        System.out.println("Iniciando chat:");
+        System.out.println("  Cliente: " + currentUser.getEmail());
+        System.out.println("  Empresa: " + a.getEmpresaEmail());
+        System.out.println("  Anuncio ID: " + a.getId());
+
+        try {
+            // Crear o obtener chat existente
+            ChatControler chatCtrl = new ChatControler();
+            Chat chat = chatCtrl.getOrCreateChat(currentUser.getEmail(), a.getEmpresaEmail(), a.getId());
+
+            if (chat != null) {
+                System.out.println("Chat creado/obtenido con ID: " + chat.getId());
+
+                // Cambiar a la pestaña de chats y abrir el chat específico
+                setSelectedTab(btnChats);
+                subLabel.setText("💬 Chats");
+
+                // Obtener el ChatsPanel y abrirlo
+                Component[] components = panelContenido.getComponents();
+                for (Component comp : components) {
+                    if (comp instanceof ChatsPanel) {
+                        ChatsPanel chatsPanel = (ChatsPanel) comp;
+                        cardLayout.show(panelContenido, "CHATS");
+                        // Refrescar y abrir el chat específico
+                        SwingUtilities.invokeLater(() -> chatsPanel.refrescarChats());
+                        break;
+                    }
+                }
+            } else {
+                System.err.println("Error: chatCtrl.getOrCreateChat devolvió null");
+                JOptionPane.showMessageDialog(this,
+                    "Error al crear el chat.\nPor favor, verifica que la empresa existe en la base de datos.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            System.err.println("Excepción al crear chat: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "Error al crear el chat: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /* ====================== PANTALLA COMPLETA: NUEVO ANUNCIO ====================== */
