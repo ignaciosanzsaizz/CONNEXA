@@ -41,7 +41,9 @@ public class AnuncioDAO {
     public Anuncio findById(String id) {
         if (id == null || id.isBlank()) return null;
         Connection con = ConnectionDAO.getInstance().getConnection();
-        String sql = "SELECT id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa, creado_en, actualizado_en FROM anuncios WHERE id = ?";
+        String sql = "SELECT a.id, a.descripcion, a.precio, a.categoria, a.especificacion, a.ubicacion, a.nif_empresa, a.creado_en, a.actualizado_en, e.mail AS empresa_email " +
+                     "FROM anuncios a LEFT JOIN empresa e ON a.nif_empresa = e.nif " +
+                     "WHERE a.id = ?";
 
         try (PreparedStatement pst = con.prepareStatement(sql)) {
             pst.setString(1, id);
@@ -64,7 +66,9 @@ public class AnuncioDAO {
         if (nifEmpresa == null || nifEmpresa.isBlank()) return anuncios;
 
         Connection con = ConnectionDAO.getInstance().getConnection();
-        String sql = "SELECT id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa, creado_en, actualizado_en FROM anuncios WHERE nif_empresa = ? ORDER BY creado_en DESC";
+        String sql = "SELECT a.id, a.descripcion, a.precio, a.categoria, a.especificacion, a.ubicacion, a.nif_empresa, a.creado_en, a.actualizado_en, e.mail AS empresa_email " +
+                     "FROM anuncios a LEFT JOIN empresa e ON a.nif_empresa = e.nif " +
+                     "WHERE a.nif_empresa = ? ORDER BY a.creado_en DESC";
 
         try (PreparedStatement pst = con.prepareStatement(sql)) {
             pst.setString(1, nifEmpresa);
@@ -85,7 +89,9 @@ public class AnuncioDAO {
     public List<Anuncio> findAll() {
         List<Anuncio> anuncios = new ArrayList<>();
         Connection con = ConnectionDAO.getInstance().getConnection();
-        String sql = "SELECT id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa, creado_en, actualizado_en FROM anuncios ORDER BY creado_en DESC";
+        String sql = "SELECT a.id, a.descripcion, a.precio, a.categoria, a.especificacion, a.ubicacion, a.nif_empresa, a.creado_en, a.actualizado_en, e.mail AS empresa_email " +
+                     "FROM anuncios a LEFT JOIN empresa e ON a.nif_empresa = e.nif " +
+                     "ORDER BY a.creado_en DESC";
 
         try (Statement st = con.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -165,6 +171,15 @@ public class AnuncioDAO {
         a.setNifEmpresa(rs.getString("nif_empresa"));
         a.setCreadoEn(rs.getTimestamp("creado_en"));
         a.setActualizadoEn(rs.getTimestamp("actualizado_en"));
+
+        // Intentar obtener empresa_email si existe en el ResultSet
+        try {
+            String empresaEmail = rs.getString("empresa_email");
+            a.setEmpresaEmail(empresaEmail);
+        } catch (SQLException e) {
+            // Si no existe la columna, no hacemos nada
+        }
+
         return a;
     }
 
@@ -173,15 +188,14 @@ public class AnuncioDAO {
      * Busca anuncios por categoría y especificación.
      * Si un parámetro es null, no se filtra por ese campo.
      */
-
     public List<Anuncio> search(String categoria, String esp) {
         Connection con = ConnectionDAO.getInstance().getConnection();
-        String sql =
-            "SELECT id, descripcion, precio, categoria, especificacion, ubicacion, nif_empresa " +
-            "FROM anuncios " +
-            "WHERE (? IS NULL OR categoria = ?) " +
-            "  AND (? IS NULL OR especificacion = ?) " +
-            "ORDER BY creado_en DESC";
+        String sql = "SELECT a.id, a.descripcion, a.precio, a.categoria, a.especificacion, a.ubicacion, a.nif_empresa, a.creado_en, a.actualizado_en, e.mail AS empresa_email " +
+                     "FROM anuncios a " +
+                     "LEFT JOIN empresa e ON a.nif_empresa = e.nif " +
+                     "WHERE (? IS NULL OR a.categoria = ?) " +
+                     "  AND (? IS NULL OR a.especificacion = ?) " +
+                     "ORDER BY a.creado_en DESC";
         List<Anuncio> out = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, categoria); ps.setString(2, categoria);
@@ -196,10 +210,16 @@ public class AnuncioDAO {
                     a.setEspecificacion(rs.getString("especificacion"));
                     a.setUbicacion(rs.getString("ubicacion"));
                     a.setNifEmpresa(rs.getString("nif_empresa"));
+                    a.setCreadoEn(rs.getTimestamp("creado_en"));
+                    a.setActualizadoEn(rs.getTimestamp("actualizado_en"));
+                    a.setEmpresaEmail(rs.getString("empresa_email"));
                     out.add(a);
                 }
             }
-        } catch (SQLException ex) { ex.printStackTrace(); }
+        } catch (SQLException ex) {
+            System.err.println("Error en búsqueda de anuncios: " + ex.getMessage());
+            ex.printStackTrace();
+        }
         return out;
     }
 }
