@@ -12,6 +12,8 @@ target/
 .idea/jarRepositories.xml
 .idea/compiler.xml
 .idea/libraries/
+.idea/copilot*.xml
+.idea/copilotDiffState.xml
 *.iws
 *.iml
 *.ipr
