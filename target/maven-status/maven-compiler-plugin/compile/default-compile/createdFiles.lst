@@ -2,7 +2,6 @@ icai\dtc\isw\ui\Geocoding$LatLon.class
 icai\dtc\isw\ui\CompanyMapPanel$2.class
 icai\dtc\isw\controler\CustomerControler.class
 icai\dtc\isw\ui\UIUtils.class
-icai\dtc\isw\dao\TestConnection.class
 icai\dtc\isw\ui\HomePanel.class
 icai\dtc\isw\dao\ConnectionDAO.class
 icai\dtc\isw\ui\AppMovilMock$NuevoAnuncioPanel.class
@@ -18,13 +17,11 @@ icai\dtc\isw\ui\LoginPanel.class
 icai\dtc\isw\ui\AppMovilMock$1$1.class
 icai\dtc\isw\ui\HomePanel$1.class
 icai\dtc\isw\ui\ChatsPanel.class
-icai\dtc\isw\dao\VerificarBaseDatos.class
 icai\dtc\isw\ui\AppMovilMock$3.class
 icai\dtc\isw\controler\EmpresaControler.class
 icai\dtc\isw\client\Client.class
 icai\dtc\isw\ui\UIUtils$RoundedBorder.class
 icai\dtc\isw\ui\EditarAnuncioPanel.class
-icai\dtc\isw\dao\TestChat.class
 icai\dtc\isw\domain\MensajeChat.class
 icai\dtc\isw\ui\AnuncioDetallePanel.class
 icai\dtc\isw\ui\AuthApi.class
@@ -43,13 +40,10 @@ icai\dtc\isw\ui\UIUtils$GradientBar.class
 icai\dtc\isw\ui\AnuncioDetallePanel$1.class
 icai\dtc\isw\ui\AppMovilMock.class
 icai\dtc\isw\domain\Anuncio.class
-icai\dtc\isw\dao\TestConexionRapido.class
 icai\dtc\isw\controler\BusquedasControler.class
 icai\dtc\isw\ui\AppMovilMock$1.class
 icai\dtc\isw\configuration\PropertiesISW.class
 icai\dtc\isw\ui\RegisterPanel$1.class
-icai\dtc\isw\dao\TestSearchSimple.class
-icai\dtc\isw\dao\DiagnosticarBusqueda.class
 icai\dtc\isw\server\SocketServer.class
 icai\dtc\isw\ui\CrearAnuncioPanel.class
 icai\dtc\isw\ui\RegisterPanel.class

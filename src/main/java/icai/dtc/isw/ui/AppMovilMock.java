@@ -741,10 +741,10 @@ public class AppMovilMock extends JFrame {
                 new EmptyBorder(12, 16, 12, 16)
         ));
 
-        // Altura MÍNIMA de 130px, ancho suficiente para que NUNCA se monten los botones
-        card.setPreferredSize(new Dimension(900, 130));
-        card.setMinimumSize(new Dimension(600, 130));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
+        // Altura de 200px para que haya espacio suficiente
+        card.setPreferredSize(new Dimension(900, 200));
+        card.setMinimumSize(new Dimension(600, 200));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
 
         // ========== PANEL IZQUIERDO: Información del anuncio ==========
         GridBagConstraints left = new GridBagConstraints();
@@ -830,14 +830,6 @@ public class AppMovilMock extends JFrame {
         // Botón Chatear (solo si no es el propio anuncio)
         boolean esPropio = anuncio.getEmpresaNif() != null && anuncio.getEmpresaNif().equals(obtenerNifEmpresaActual());
 
-        // DEBUG: Ver por qué no aparece el botón
-        System.out.println("DEBUG Anuncio ID: " + anuncio.getId());
-        System.out.println("  - NIF Anuncio: " + anuncio.getEmpresaNif());
-        System.out.println("  - NIF Usuario actual: " + obtenerNifEmpresaActual());
-        System.out.println("  - Es propio: " + esPropio);
-        System.out.println("  - Email empresa: " + anuncio.getEmpresaEmail());
-        System.out.println("  - Mostrar botón: " + (!esPropio && anuncio.getEmpresaEmail() != null));
-
         if (!esPropio && anuncio.getEmpresaEmail() != null) {
             JButton btnChat = UIUtils.secondaryButton("💬 Chatear");
             btnChat.setAlignmentX(Component.RIGHT_ALIGNMENT);
@@ -847,9 +839,6 @@ public class AppMovilMock extends JFrame {
             btnChat.setFont(new Font("SansSerif", Font.BOLD, 12));
             btnChat.addActionListener(e -> iniciarChatConAnuncio(anuncio));
             rightPanel.add(btnChat);
-            System.out.println("  → ✅ BOTÓN AGREGADO");
-        } else {
-            System.out.println("  → ❌ BOTÓN NO AGREGADO");
         }
 
         card.add(rightPanel, right);
