@@ -1,7 +1,11 @@
 target/
 !.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+
+### Archivos compilados ###
+*.class
+*.jar
+*.war
+*.ear
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
