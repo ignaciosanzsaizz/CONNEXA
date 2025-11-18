@@ -1,12 +1,15 @@
 package icai.dtc.isw.ui;
 
+/**
+ * Emula la aplicación móvil de CONNEXA en forma de ventana Swing,
+ * mostrando las pestañas de perfil, búsquedas, favoritos, chats y
+ * empresa, y orquestando todas las llamadas al servidor.
+ */
+
 import icai.dtc.isw.domain.Empresa;
 import icai.dtc.isw.domain.User;
 import icai.dtc.isw.domain.Anuncio;
 import icai.dtc.isw.domain.Chat;
-import icai.dtc.isw.controler.BusquedasControler;
-import icai.dtc.isw.controler.ChatControler;
-import icai.dtc.isw.controler.FavoritosController;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -74,15 +77,22 @@ public class AppMovilMock extends JFrame {
     private JPanel perfilPanel;
     // Botones de la tab bar para marcar seleccionado
     private JButton btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa;
+    private JComboBox<String> cboGeneral;
+    private JComboBox<String> cboEspecifico;
     private JComboBox<String> cboUbicacion;
     private JComboBox<String> cboCalidad;
+    private JLabel lblUbicacionActual;
 
     // Almacenamos el panel de favoritos para una recarga más sencilla.
     private JPanel favoritosWrapper;
 
-    // --- Controladores ---
-    private final BusquedasControler busquedasCtrl = new BusquedasControler();
-    private final FavoritosController favoritosCtrl = new FavoritosController();
+    private String userLocation;
+    private boolean locationPrompted;
+
+    // --- APIs remotas ---
+    private final AnuncioApi anuncioApi = new AnuncioApi();
+    private final FavoritosApi favoritosApi = new FavoritosApi();
+    private final ChatApi chatApi = new ChatApi();
 
     private JPanel contenedorLista; // contenedor vertical con tarjetas
 
@@ -154,7 +164,9 @@ public class AppMovilMock extends JFrame {
         btnBusquedas.addActionListener(e -> {
             setSelectedTab(btnBusquedas);
             subLabel.setText("🔎 Búsquedas");
+            solicitarUbicacionInicial();
             cardLayout.show(panelContenido, "BUSQUEDAS");
+            recargarResultadosConValoresActuales();
         });
 
         // CORRECCIÓN FINAL: Listener para recargar favoritos al hacer clic en la pestaña
@@ -290,7 +302,7 @@ public class AppMovilMock extends JFrame {
         SwingWorker<java.util.List<Anuncio>, Void> worker = new SwingWorker<>() {
             @Override
             protected java.util.List<Anuncio> doInBackground() {
-                return favoritosCtrl.getFavoritos(idUsuario);
+                return favoritosApi.getFavoritos(idUsuario);
             }
 
             @Override
@@ -355,16 +367,15 @@ public class AppMovilMock extends JFrame {
         SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
             @Override
             protected Boolean doInBackground() {
-                return favoritosCtrl.toggleFavorito(idUsuario, anuncio.getId());
+                return favoritosApi.toggleFavorito(idUsuario, anuncio.getId());
             }
 
             @Override
             protected void done() {
                 try {
-                    boolean success = get();
-                    if (success) {
-                        boolean isFav = favoritosCtrl.isFavorito(idUsuario, anuncio.getId());
-
+                    Boolean newState = get();
+                    if (newState != null) {
+                        boolean isFav = newState;
                         // Actualizar el botón
                         JButton newButton = createStarButton(isFav);
                         btnFav.setText(newButton.getText());
@@ -593,7 +604,7 @@ public class AppMovilMock extends JFrame {
         JLabel lblGeneral = new JLabel("Categoría");
         lblGeneral.setForeground(new Color(20, 40, 80));
         lblGeneral.setFont(new Font("SansSerif", Font.PLAIN, 12)); // texto más pequeño
-        JComboBox<String> cboGeneral = UIUtils.styledCombo(CATEGORIAS_GENERALES);
+        cboGeneral = UIUtils.styledCombo(CATEGORIAS_GENERALES);
         gbc.weightx = 0; filtrosCard.add(lblGeneral, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboGeneral, gbc);
         //Trabajo
@@ -601,7 +612,7 @@ public class AppMovilMock extends JFrame {
         JLabel lblEspecifico = new JLabel("Trabajo");
         lblEspecifico.setForeground(new Color(20, 40, 80));
         lblEspecifico.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        JComboBox<String> cboEspecifico = UIUtils.styledCombo(new String[]{});
+        cboEspecifico = UIUtils.styledCombo(new String[]{});
         cboEspecifico.setEnabled(false);
         filtrosCard.add(lblEspecifico, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboEspecifico, gbc);
@@ -626,6 +637,19 @@ public class AppMovilMock extends JFrame {
         cboCalidad.setSelectedIndex(0);
         filtrosCard.add(lblCalidad, gbc);
         gbc.gridx = 1; gbc.weightx = 1; filtrosCard.add(cboCalidad, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
+        JPanel ubicacionPanel = new JPanel(new BorderLayout(8, 0));
+        ubicacionPanel.setOpaque(false);
+        lblUbicacionActual = new JLabel("Ubicaci\u00f3n no establecida");
+        lblUbicacionActual.setForeground(new Color(90, 100, 120));
+        JButton btnCambiarUbicacion = UIUtils.secondaryButton("📍 Establecer ubicaci\u00f3n");
+        btnCambiarUbicacion.addActionListener(e -> solicitarUbicacionManual());
+        ubicacionPanel.add(lblUbicacionActual, BorderLayout.CENTER);
+        ubicacionPanel.add(btnCambiarUbicacion, BorderLayout.EAST);
+        filtrosCard.add(ubicacionPanel, gbc);
+        gbc.gridwidth = 1;
+
         // ====== Resultados (contenedor vertical con tarjetas) ======
         JPanel resultadosCard = createCardPanel();
         resultadosCard.setLayout(new BorderLayout());
@@ -666,10 +690,11 @@ public class AppMovilMock extends JFrame {
             recargarResultados((String) cboGeneral.getSelectedItem(),
                     (String) cboEspecifico.getSelectedItem());
         });
-        cboUbicacion.addActionListener(e -> recargarResultados(
-                (String) cboGeneral.getSelectedItem(),
-                cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null
-        ));
+        cboUbicacion.addActionListener(e -> {
+            if (!cboUbicacion.isEnabled()) return;
+            recargarResultados((String) cboGeneral.getSelectedItem(),
+                    cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null);
+        });
         cboCalidad.addActionListener(e -> recargarResultados(
                 (String) cboGeneral.getSelectedItem(),
                 cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null
@@ -678,6 +703,7 @@ public class AppMovilMock extends JFrame {
         // primera carga de resultados con los valores por defecto
         recargarResultados((String) cboGeneral.getSelectedItem(),
                 cboEspecifico.isEnabled() ? (String) cboEspecifico.getSelectedItem() : null);
+        actualizarEstadoUbicacionUI();
         return contenedor;
     }
 
@@ -685,16 +711,22 @@ public class AppMovilMock extends JFrame {
         // Calidad (⭐..⭐⭐⭐⭐⭐) → índice 0..4  => mínimo 1..5
         int calidadMin = cboCalidad.getSelectedIndex() + 1;
         // Radio en km a partir del combo (500 m, 1 km, 2 km, 5 km, 10 km)
-        int radioKm;
-        switch (cboUbicacion.getSelectedIndex()) {
-            case 0 -> radioKm = 0; // 500 m ~ 0.5 km (ajusta si tu backend usa decimales)
-            case 1 -> radioKm = 1;
-            case 2 -> radioKm = 2;
-            case 3 -> radioKm = 5;
-            default -> radioKm = 10;
+        Double radioKm = null;
+        if (cboUbicacion.isEnabled()) {
+            radioKm = switch (cboUbicacion.getSelectedIndex()) {
+                case 0 -> 0.5;
+                case 1 -> 1d;
+                case 2 -> 2d;
+                case 3 -> 5d;
+                default -> 10d;
+            };
         }
 
-        String origen = null;
+        String origen = (cboUbicacion.isEnabled() && userLocation != null && !userLocation.isBlank())
+                ? userLocation
+                : null;
+        final Double radioKmFinal = radioKm;
+        final String origenFinal = origen;
 
         contenedorLista.removeAll();
         // Mostrar mensaje de carga
@@ -712,7 +744,7 @@ public class AppMovilMock extends JFrame {
                 System.out.println("Categoría: " + categoria);
                 System.out.println("Trabajo: " + trabajo);
 
-                return busquedasCtrl.buscar(categoria, trabajo, calidadMin, origen, radioKm);
+                return anuncioApi.searchAnuncios(categoria, trabajo, calidadMin, origenFinal, radioKmFinal);
             }
 
             @Override
@@ -758,6 +790,55 @@ public class AppMovilMock extends JFrame {
             }
         };
         worker.execute();
+    }
+
+    private void solicitarUbicacionInicial() {
+        if ((userLocation == null || userLocation.isBlank()) && !locationPrompted) {
+            locationPrompted = true;
+            mostrarDialogoUbicacion("Para usar el filtro por distancia introduce tu direcci\u00f3n (opcional).");
+        }
+        actualizarEstadoUbicacionUI();
+    }
+
+    private void solicitarUbicacionManual() {
+        locationPrompted = true;
+        boolean submitted = mostrarDialogoUbicacion("Introduce tu direcci\u00f3n para priorizar los resultados cercanos.");
+        actualizarEstadoUbicacionUI();
+        if (submitted) {
+            recargarResultadosConValoresActuales();
+        }
+    }
+
+    private boolean mostrarDialogoUbicacion(String mensaje) {
+        String valor = (String) JOptionPane.showInputDialog(
+                this,
+                mensaje + "\n(Puedes dejarlo vac\u00edo para mantener la funcionalidad desactivada).",
+                "Tu ubicaci\u00f3n",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                null,
+                userLocation != null ? userLocation : ""
+        );
+        if (valor == null) return false;
+        valor = valor.trim();
+        userLocation = valor.isEmpty() ? null : valor;
+        return true;
+    }
+
+    private void actualizarEstadoUbicacionUI() {
+        boolean disponible = userLocation != null && !userLocation.isBlank();
+        if (lblUbicacionActual != null) {
+        lblUbicacionActual.setText(disponible ? userLocation : "Ubicaci\u00f3n no establecida");
+        }
+        if (cboUbicacion != null) {
+            cboUbicacion.setEnabled(disponible);
+        }
+    }
+
+    private void recargarResultadosConValoresActuales() {
+        if (cboGeneral == null) return;
+        recargarResultados((String) cboGeneral.getSelectedItem(),
+                (cboEspecifico != null && cboEspecifico.isEnabled()) ? (String) cboEspecifico.getSelectedItem() : null);
     }
 
     private void mostrarFormularioEmpresa(Empresa emp) {
@@ -1028,7 +1109,12 @@ public class AppMovilMock extends JFrame {
 
         // --- Nuevo Botón de Favoritos ---
         String idUsuario = safeUserId();
-        boolean isFav = idUsuario != null && anuncio.getId() != null && favoritosCtrl.isFavorito(idUsuario, anuncio.getId());
+        boolean isFav = false;
+        if (idUsuario != null && anuncio.getId() != null) {
+            try {
+                isFav = favoritosApi.isFavorito(idUsuario, anuncio.getId());
+            } catch (Exception ignored) {}
+        }
 
         JButton btnFav = createStarButton(isFav);
         btnFav.setToolTipText(isFav ? "Eliminar de favoritos" : "Añadir a favoritos");
@@ -1174,8 +1260,7 @@ public class AppMovilMock extends JFrame {
         System.out.println("  Anuncio ID: " + a.getId());
         try {
             // Crear o obtener chat existente
-            ChatControler chatCtrl = new ChatControler();
-            Chat chat = chatCtrl.getOrCreateChat(currentUser.getEmail(), a.getEmpresaEmail(), a.getId());
+            Chat chat = chatApi.getOrCreateChat(currentUser.getEmail(), a.getEmpresaEmail(), a.getId());
 
             if (chat != null) {
                 System.out.println("Chat creado/obtenido con ID: " + chat.getId());

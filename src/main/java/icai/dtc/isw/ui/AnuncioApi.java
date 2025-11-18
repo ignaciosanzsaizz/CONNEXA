@@ -82,5 +82,23 @@ public class AnuncioApi {
         session = c.sentMessage("/anuncio/delete", session);
         return Boolean.TRUE.equals(session.get("ok"));
     }
-}
 
+    /**
+     * Busca anuncios aplicando diferentes filtros opcionales.
+     */
+    @SuppressWarnings("unchecked")
+    public List<Anuncio> searchAnuncios(String categoria, String trabajo,
+                                        Integer calidadMin, String origen, Double radioKm) {
+        Client c = new Client();
+        HashMap<String, Object> session = new HashMap<>();
+        session.put("categoria", categoria);
+        session.put("trabajo", trabajo);
+        session.put("calidadMin", calidadMin);
+        session.put("origen", origen);
+        session.put("radioKm", radioKm);
+
+        session = c.sentMessage("/anuncio/search", session);
+        Object o = session.get("anuncios");
+        return (o instanceof List) ? (List<Anuncio>) o : null;
+    }
+}

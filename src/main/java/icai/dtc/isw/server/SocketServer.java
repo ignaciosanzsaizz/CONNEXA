@@ -1,5 +1,11 @@
 package icai.dtc.isw.server;
 
+/**
+ * Servidor TCP basado en sockets que actúa como backend ligero:
+ * recibe peticiones serializadas (Message), invoca los controladores
+ * del dominio y responde con los datos para la UI.
+ */
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -10,6 +16,9 @@ import java.net.Socket;
 import java.util.HashMap;
 
 import icai.dtc.isw.configuration.PropertiesISW;
+import icai.dtc.isw.controler.BusquedasControler;
+import icai.dtc.isw.controler.ChatControler;
+import icai.dtc.isw.controler.FavoritosController;
 import icai.dtc.isw.controler.UserControler;
 import icai.dtc.isw.domain.User;
 import icai.dtc.isw.message.Message;
@@ -218,6 +227,142 @@ public class SocketServer extends Thread {
                     mensajeOut.setContext("/anuncioDeleteResponse");
                     session.put("ok", ok);
                     if (!ok) session.put("error", "ANUNCIO_DELETE_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/anuncio/search": {
+                    String categoria = (String) session.get("categoria");
+                    String trabajo = (String) session.get("trabajo");
+                    Integer calidadMin = (Integer) session.get("calidadMin");
+                    String origen = (String) session.get("origen");
+                    Number radioNumber = (Number) session.get("radioKm");
+                    Double radioKm = radioNumber != null ? radioNumber.doubleValue() : null;
+
+                    BusquedasControler bc = new BusquedasControler();
+                    java.util.List<icai.dtc.isw.domain.Anuncio> anuncios =
+                            bc.buscar(categoria, trabajo, calidadMin, origen, radioKm);
+
+                    mensajeOut.setContext("/anuncioSearchResponse");
+                    session.put("anuncios", anuncios);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/favoritos/toggle": {
+                    String idUsuario = (String) session.get("idUsuario");
+                    String idAnuncio = (String) session.get("idAnuncio");
+                    FavoritosController fc = new FavoritosController();
+                    boolean ok = fc.toggleFavorito(idUsuario, idAnuncio);
+                    boolean isFavorito = fc.isFavorito(idUsuario, idAnuncio);
+
+                    mensajeOut.setContext("/favoritosToggleResponse");
+                    session.put("ok", ok);
+                    session.put("isFavorito", isFavorito);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/favoritos/is": {
+                    String idUsuario = (String) session.get("idUsuario");
+                    String idAnuncio = (String) session.get("idAnuncio");
+                    FavoritosController fc = new FavoritosController();
+                    boolean isFavorito = fc.isFavorito(idUsuario, idAnuncio);
+
+                    mensajeOut.setContext("/favoritosIsResponse");
+                    session.put("isFavorito", isFavorito);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/favoritos/list": {
+                    String idUsuario = (String) session.get("idUsuario");
+                    FavoritosController fc = new FavoritosController();
+                    java.util.List<icai.dtc.isw.domain.Anuncio> favoritos = fc.getFavoritos(idUsuario);
+
+                    mensajeOut.setContext("/favoritosListResponse");
+                    session.put("anuncios", favoritos);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/chat/list": {
+                    String email = (String) session.get("email");
+                    ChatControler chatControler = new ChatControler();
+                    java.util.List<icai.dtc.isw.domain.Chat> chats = chatControler.getChatsByUser(email);
+
+                    mensajeOut.setContext("/chatListResponse");
+                    session.put("chats", chats);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/chat/getOrCreate": {
+                    String clienteEmail = (String) session.get("clienteEmail");
+                    String empresaEmail = (String) session.get("empresaEmail");
+                    String anuncioId = (String) session.get("anuncioId");
+                    ChatControler chatControler = new ChatControler();
+                    icai.dtc.isw.domain.Chat chat = chatControler.getOrCreateChat(clienteEmail, empresaEmail, anuncioId);
+
+                    mensajeOut.setContext("/chatGetOrCreateResponse");
+                    session.put("chat", chat);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/chat/messages": {
+                    Number chatIdNumber = (Number) session.get("chatId");
+                    int chatId = chatIdNumber != null ? chatIdNumber.intValue() : 0;
+                    ChatControler chatControler = new ChatControler();
+                    java.util.List<icai.dtc.isw.domain.MensajeChat> mensajes = chatControler.getMensajesByChat(chatId);
+
+                    mensajeOut.setContext("/chatMessagesResponse");
+                    session.put("mensajes", mensajes);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/chat/send": {
+                    Number chatIdNumber = (Number) session.get("chatId");
+                    int chatId = chatIdNumber != null ? chatIdNumber.intValue() : 0;
+                    String remitenteEmail = (String) session.get("remitenteEmail");
+                    String contenido = (String) session.get("contenido");
+                    ChatControler chatControler = new ChatControler();
+                    boolean ok = chatControler.enviarMensaje(chatId, remitenteEmail, contenido);
+
+                    mensajeOut.setContext("/chatSendResponse");
+                    session.put("ok", ok);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/chat/read": {
+                    Number chatIdNumber = (Number) session.get("chatId");
+                    int chatId = chatIdNumber != null ? chatIdNumber.intValue() : 0;
+                    String userEmail = (String) session.get("userEmail");
+                    ChatControler chatControler = new ChatControler();
+                    chatControler.marcarMensajesComoLeidos(chatId, userEmail);
+
+                    mensajeOut.setContext("/chatReadResponse");
+                    session.put("ok", true);
                     mensajeOut.setSession(session);
                     objectOutputStream.writeObject(mensajeOut);
                     objectOutputStream.flush();
