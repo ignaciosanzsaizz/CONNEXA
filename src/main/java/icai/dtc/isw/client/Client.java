@@ -96,6 +96,12 @@ public class Client {
 			case "/chatMessagesResponse":
 			case "/chatSendResponse":
 			case "/chatReadResponse":
+			case "/contratacionCrearResponse":
+			case "/contratacionExisteResponse":
+			case "/contratacionListResponse":
+			case "/contratacionTerminarResponse":
+			case "/contratacionValorarResponse":
+			case "/contratacionEstadoResponse":
 				session = mensajeVuelta.getSession();
 				break;
 
