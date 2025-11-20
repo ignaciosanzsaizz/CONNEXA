@@ -11,14 +11,20 @@ import icai.dtc.isw.domain.User;
 import icai.dtc.isw.domain.Anuncio;
 import icai.dtc.isw.domain.Chat;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicButtonUI;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.lang.reflect.Method;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
@@ -76,7 +82,7 @@ public class AppMovilMock extends JFrame {
     // Guardamos referencia a la tarjeta de PERFIL para poder reconstruirla
     private JPanel perfilPanel;
     // Botones de la tab bar para marcar seleccionado
-    private JButton btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa;
+    private JButton btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa, btnContrataciones;
     private JComboBox<String> cboGeneral;
     private JComboBox<String> cboEspecifico;
     private JComboBox<String> cboUbicacion;
@@ -85,6 +91,7 @@ public class AppMovilMock extends JFrame {
 
     // Almacenamos el panel de favoritos para una recarga más sencilla.
     private JPanel favoritosWrapper;
+    private JPanel contratacionesWrapper;
 
     private String userLocation;
     private boolean locationPrompted;
@@ -93,6 +100,7 @@ public class AppMovilMock extends JFrame {
     private final AnuncioApi anuncioApi = new AnuncioApi();
     private final FavoritosApi favoritosApi = new FavoritosApi();
     private final ChatApi chatApi = new ChatApi();
+    private final ContratacionApi contratacionApi = new ContratacionApi();
 
     private JPanel contenedorLista; // contenedor vertical con tarjetas
 
@@ -140,21 +148,24 @@ public class AppMovilMock extends JFrame {
         // MODIFICADO: Llamar a la nueva pantalla de favoritos y guardar referencia
         favoritosWrapper = crearPantallaFavoritos();
         panelContenido.add(favoritosWrapper, "FAVORITOS");
+        contratacionesWrapper = new ContratacionesPanel(currentUser);
+        panelContenido.add(contratacionesWrapper, "CONTRATACIONES");
         panelContenido.add(new ChatsPanel(currentUser), "CHATS");
         // Pasamos this al EmpresaPanel para refrescar perfil tras guardar empresa
         panelContenido.add(new EmpresaPanel(currentUser, CATEGORIAS_GENERALES, this), "MI_EMPRESA");
         add(panelContenido, BorderLayout.CENTER);
 
         // ======== Tab bar inferior con emojis y estado seleccionado ========
-        JPanel barraInferior = new JPanel(new GridLayout(1, 5));
+        JPanel barraInferior = new JPanel(new GridLayout(1, 6));
         barraInferior.setBorder(new EmptyBorder(8, 8, 8, 8));
         barraInferior.setBackground(Color.WHITE);
 
-        btnPerfil    = navEmojiButton("🧑‍💼", "Perfil");
-        btnBusquedas = navEmojiButton("🔎",  "Búsquedas");
-        btnFavoritos = navEmojiButton("⭐",  "Favoritos");
-        btnChats     = navEmojiButton("💬",  "Chats");
-        btnEmpresa   = navEmojiButton("🏢",  "Mi Empresa");
+        btnPerfil         = navEmojiButton("🧑‍💼", "Perfil");
+        btnBusquedas      = navEmojiButton("🔎",  "Búsquedas");
+        btnFavoritos      = navEmojiButton("⭐",  "Favoritos");
+        btnContrataciones = navEmojiButton("📋",  "Contrataciones");
+        btnChats          = navEmojiButton("💬",  "Chats");
+        btnEmpresa        = navEmojiButton("🏢",  "Mi Empresa");
 
         btnPerfil.addActionListener(e -> {
             setSelectedTab(btnPerfil);
@@ -180,6 +191,15 @@ public class AppMovilMock extends JFrame {
             }
         });
 
+        btnContrataciones.addActionListener(e -> {
+            setSelectedTab(btnContrataciones);
+            subLabel.setText("📋 Contrataciones");
+            cardLayout.show(panelContenido, "CONTRATACIONES");
+            if (contratacionesWrapper instanceof ContratacionesPanel) {
+                ((ContratacionesPanel) contratacionesWrapper).cargarContrataciones();
+            }
+        });
+
         btnChats.addActionListener(e -> {
             setSelectedTab(btnChats);
             subLabel.setText("💬 Chats");
@@ -193,6 +213,7 @@ public class AppMovilMock extends JFrame {
         barraInferior.add(btnPerfil);
         barraInferior.add(btnBusquedas);
         barraInferior.add(btnFavoritos);
+        barraInferior.add(btnContrataciones);
         barraInferior.add(btnChats);
         barraInferior.add(btnEmpresa);
 
@@ -451,7 +472,7 @@ public class AppMovilMock extends JFrame {
         return b;
     }
 
-    //  PERFIL con SCROLL y mapa (si existe empresa con ubicación)
+    // PERFIL con SCROLL y mapa (si existe empresa con ubicación)
     private JPanel crearPantallaPerfil() {
         // Contenido real
         JPanel wrapper = new JPanel(new GridBagLayout());
@@ -460,6 +481,7 @@ public class AppMovilMock extends JFrame {
         //  Tarjeta: Perfil de usuario
         JPanel cardUser = createCardPanel();
         JLabel titleUser = titleLabel("Tu perfil");
+
         JPanel gridUser = new JPanel(new GridBagLayout());
         gridUser.setOpaque(false);
         GridBagConstraints g = new GridBagConstraints();
@@ -483,27 +505,28 @@ public class AppMovilMock extends JFrame {
             SwingUtilities.invokeLater(() -> new JVentana().setVisible(true));
         });
 
-        //Nuevo panel de método de pago
+        // NUEVO: panel método de pago
         MetodoPagoPanel metodoPagoPanel = new MetodoPagoPanel(currentUser);
 
         GridBagConstraints gbcU = UIUtils.baseGbc();
-        gbcU.gridy = 0; gbcU.insets = new Insets(8, 12, 8, 12);
+        // Título
+        gbcU.gridy = 0;
+        gbcU.insets = new Insets(8, 12, 8, 12);
         cardUser.add(titleUser, gbcU);
-
+        // Datos de usuario
         gbcU.gridy = 1;
         gbcU.insets = new Insets(4, 12, 8, 12);
         cardUser.add(gridUser, gbcU);
-
+        // Botón logout
         gbcU.gridy = 2;
         gbcU.insets = new Insets(12, 12, 8, 12);
         cardUser.add(btnLogout, gbcU);
-
-        // Añadimos el panel de pagos debajo del botón logout
+        // Método de pago (debajo del logout)
         gbcU.gridy = 3;
         gbcU.insets = new Insets(8, 12, 12, 12);
         cardUser.add(metodoPagoPanel, gbcU);
 
-        //Tarjeta: Perfil de empresa
+        //  Tarjeta: Perfil de empresa
         JPanel cardEmp = createCardPanel();
         JLabel titleEmp = titleLabel("Mi Empresa");
 
@@ -511,8 +534,10 @@ public class AppMovilMock extends JFrame {
         Empresa emp = empApi.getEmpresa(safeEmail());
 
         GridBagConstraints gbcE = UIUtils.baseGbc();
-        gbcE.gridy = 0; gbcE.insets = new Insets(8, 12, 8, 12);
+        gbcE.gridy = 0;
+        gbcE.insets = new Insets(8, 12, 8, 12);
         cardEmp.add(titleEmp, gbcE);
+
         if (emp == null) {
             JLabel info = new JLabel("Completa tu perfil de empresa en la pestaña 'Mi Empresa'.");
             info.setForeground(new Color(95, 105, 125));
@@ -523,10 +548,36 @@ public class AppMovilMock extends JFrame {
                 subLabel.setText("🏢 Mi Empresa");
                 cardLayout.show(panelContenido, "MI_EMPRESA");
             });
-            gbcE.gridy = 1; gbcE.insets = new Insets(4, 12, 8, 12); cardEmp.add(info, gbcE);
+            gbcE.gridy = 1;
+            gbcE.insets = new Insets(4, 12, 8, 12);
+            cardEmp.add(info, gbcE);
             gbcE.gridy = 2;
-            gbcE.insets = new Insets(12, 12, 12, 12); cardEmp.add(irEmpresa, gbcE);
+            gbcE.insets = new Insets(12, 12, 12, 12);
+            cardEmp.add(irEmpresa, gbcE);
         } else {
+            // Panel para foto de perfil
+            JPanel fotoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 8));
+            fotoPanel.setOpaque(false);
+
+            JLabel lblFoto = new JLabel();
+            lblFoto.setPreferredSize(new Dimension(100, 100));
+            lblFoto.setBorder(BorderFactory.createLineBorder(new Color(200, 210, 225), 2));
+            lblFoto.setHorizontalAlignment(SwingConstants.CENTER);
+
+            // Cargar foto de perfil o usar icono por defecto
+            if (emp.getFotoPerfil() != null && !emp.getFotoPerfil().isEmpty()) {
+                try {
+                    ImageIcon fotoIcon = base64ToImageIcon(emp.getFotoPerfil(), 100);
+                    lblFoto.setIcon(fotoIcon);
+                } catch (Exception ex) {
+                    lblFoto.setIcon(createDefaultCompanyIcon(100));
+                }
+            } else {
+                lblFoto.setIcon(createDefaultCompanyIcon(100));
+            }
+
+            fotoPanel.add(lblFoto);
+
             JPanel gridEmp = new JPanel(new GridBagLayout());
             gridEmp.setOpaque(false);
             GridBagConstraints g2 = new GridBagConstraints();
@@ -542,9 +593,15 @@ public class AppMovilMock extends JFrame {
             JButton btnEditar = UIUtils.secondaryButton("Editar perfil");
             btnEditar.addActionListener(e -> mostrarFormularioEmpresa(emp));
 
-            gbcE.gridy = 1; gbcE.insets = new Insets(4, 12, 8, 12); cardEmp.add(gridEmp, gbcE);
+            gbcE.gridy = 1;
+            gbcE.insets = new Insets(4, 12, 8, 12);
+            cardEmp.add(fotoPanel, gbcE);
             gbcE.gridy = 2;
-            gbcE.insets = new Insets(12, 12, 12, 12); cardEmp.add(btnEditar, gbcE);
+            gbcE.insets = new Insets(4, 12, 8, 12);
+            cardEmp.add(gridEmp, gbcE);
+            gbcE.gridy = 3;
+            gbcE.insets = new Insets(12, 12, 12, 12);
+            cardEmp.add(btnEditar, gbcE);
         }
 
         // Añadir tarjetas al wrapper
@@ -560,8 +617,7 @@ public class AppMovilMock extends JFrame {
         wrapper.add(cardEmp, wrapC);
 
         // Mapa debajo de la tarjeta empresa (si hay ubicación)
-        Empresa empresa = empApi.getEmpresa(safeEmail());
-        if (empresa != null && empresa.getUbicacion() != null && !empresa.getUbicacion().isBlank()) {
+        if (emp != null && emp.getUbicacion() != null && !emp.getUbicacion().isBlank()) {
             CompanyMapPanel mapCard = new CompanyMapPanel();
             mapCard.setPreferredSize(new Dimension(320, 240));
 
@@ -574,7 +630,7 @@ public class AppMovilMock extends JFrame {
             wrapC2.weighty = 0.0;
 
             wrapper.add(mapCard, wrapC2);
-            mapCard.setAddressAsync(empresa.getUbicacion(), empresa.getEmpresa());
+            mapCard.setAddressAsync(emp.getUbicacion(), emp.getEmpresa());
         }
 
         //  Scroll vertical para no cortar contenido
@@ -863,28 +919,85 @@ public class AppMovilMock extends JFrame {
         JTextField txtNif    = UIUtils.styledTextField(22);
         JComboBox<String> cboSector = UIUtils.styledCombo(CATEGORIAS_GENERALES);
         JTextField txtUbicacion = UIUtils.styledTextField(22);
+
+        // Panel para la foto de perfil
+        JLabel lblFotoPreview = new JLabel();
+        lblFotoPreview.setPreferredSize(new Dimension(120, 120));
+        lblFotoPreview.setBorder(BorderFactory.createLineBorder(new Color(200, 210, 225), 2));
+        lblFotoPreview.setHorizontalAlignment(SwingConstants.CENTER);
+
+        final String[] selectedImageBase64 = {null};
+
         if (emp != null) {
             txtNombre.setText(emp.getEmpresa());
             txtNif.setText(emp.getNif());
             cboSector.setSelectedItem(emp.getSector());
             txtUbicacion.setText(emp.getUbicacion());
-        } else if (cboSector.getItemCount()>0) {
-            cboSector.setSelectedIndex(0);
+
+            // Cargar foto existente o icono por defecto
+            if (emp.getFotoPerfil() != null && !emp.getFotoPerfil().isEmpty()) {
+                selectedImageBase64[0] = emp.getFotoPerfil();
+                lblFotoPreview.setIcon(base64ToImageIcon(emp.getFotoPerfil(), 120));
+            } else {
+                lblFotoPreview.setIcon(createDefaultCompanyIcon(120));
+            }
+        } else {
+            if (cboSector.getItemCount()>0) {
+                cboSector.setSelectedIndex(0);
+            }
+            lblFotoPreview.setIcon(createDefaultCompanyIcon(120));
         }
+
+        JButton btnSeleccionarFoto = UIUtils.secondaryButton("Seleccionar foto");
+        btnSeleccionarFoto.setPreferredSize(new Dimension(160, 35));
+        btnSeleccionarFoto.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Seleccionar foto de perfil");
+            FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                "Imágenes (*.jpg, *.jpeg, *.png)", "jpg", "jpeg", "png");
+            fileChooser.setFileFilter(filter);
+
+            int result = fileChooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                try {
+                    BufferedImage img = ImageIO.read(selectedFile);
+                    if (img != null) {
+                        selectedImageBase64[0] = imageToBase64(img);
+                        ImageIcon preview = new ImageIcon(scaleImage(img, 120, 120));
+                        lblFotoPreview.setIcon(preview);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this,
+                        "Error al cargar la imagen: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        JPanel fotoPanel = new JPanel(new BorderLayout(8, 8));
+        fotoPanel.setBackground(Color.WHITE);
+        JPanel fotoPreviewPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        fotoPreviewPanel.setBackground(Color.WHITE);
+        fotoPreviewPanel.add(lblFotoPreview);
+        fotoPanel.add(fotoPreviewPanel, BorderLayout.CENTER);
+        fotoPanel.add(btnSeleccionarFoto, BorderLayout.SOUTH);
 
         JPanel form = new JPanel(new GridBagLayout());
         form.setBorder(new EmptyBorder(12,12,12,12));
         form.setBackground(Color.WHITE);
         GridBagConstraints gbc = UIUtils.baseGbc();
-        gbc.gridy=0; form.add(new JLabel("Nombre de la empresa:"), gbc);
-        gbc.gridy=1; form.add(txtNombre, gbc);
-        gbc.gridy=2; form.add(new JLabel("NIF/CIF:"), gbc);
-        gbc.gridy=3;
+        gbc.gridy=0; form.add(new JLabel("Foto de perfil:"), gbc);
+        gbc.gridy=1; form.add(fotoPanel, gbc);
+        gbc.gridy=2; form.add(new JLabel("Nombre de la empresa:"), gbc);
+        gbc.gridy=3; form.add(txtNombre, gbc);
+        gbc.gridy=4; form.add(new JLabel("NIF/CIF:"), gbc);
+        gbc.gridy=5;
         form.add(txtNif, gbc);
-        gbc.gridy=4; form.add(new JLabel("Sector:"), gbc);
-        gbc.gridy=5; form.add(cboSector, gbc);
-        gbc.gridy=6; form.add(new JLabel("Ubicación:"), gbc);
-        gbc.gridy=7; form.add(txtUbicacion, gbc);
+        gbc.gridy=6; form.add(new JLabel("Sector:"), gbc);
+        gbc.gridy=7; form.add(cboSector, gbc);
+        gbc.gridy=8; form.add(new JLabel("Ubicación:"), gbc);
+        gbc.gridy=9; form.add(txtUbicacion, gbc);
         int r = JOptionPane.showConfirmDialog(
                 this, form, "Editar perfil de empresa",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
@@ -899,8 +1012,18 @@ public class AppMovilMock extends JFrame {
                 return;
             }
 
+            // Si no se seleccionó nueva foto, mantener la existente o usar defecto
+            String fotoPerfil = selectedImageBase64[0];
+            if (fotoPerfil == null) {
+                if (emp != null && emp.getFotoPerfil() != null) {
+                    fotoPerfil = emp.getFotoPerfil();
+                } else {
+                    fotoPerfil = iconToBase64(createDefaultCompanyIcon(120));
+                }
+            }
+
             EmpresaApi api = new EmpresaApi();
-            boolean ok = api.saveEmpresa(safeEmail(), nombre, nif, sector, ubic);
+            boolean ok = api.saveEmpresa(safeEmail(), nombre, nif, sector, ubic, fotoPerfil);
             if (ok) {
                 JOptionPane.showMessageDialog(this, "Empresa guardada", "Mi Empresa", JOptionPane.INFORMATION_MESSAGE);
                 refreshPerfil();
@@ -966,7 +1089,7 @@ public class AppMovilMock extends JFrame {
     }
 
     private void setSelectedTab(JButton selected) {
-        JButton[] all = {btnPerfil, btnBusquedas, btnFavoritos, btnChats, btnEmpresa};
+        JButton[] all = {btnPerfil, btnBusquedas, btnFavoritos, btnContrataciones, btnChats, btnEmpresa};
         for (JButton b : all) {
             if (b == null) continue;
             if (selected == null) {
@@ -1042,10 +1165,10 @@ public class AppMovilMock extends JFrame {
                 new UIUtils.RoundedBorder(12, new Color(220, 230, 245)),
                 new EmptyBorder(12, 16, 12, 16)
         ));
-        // Altura de 200px para que haya espacio suficiente
-        card.setPreferredSize(new Dimension(900, 200));
-        card.setMinimumSize(new Dimension(600, 200));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        // Altura de 280px para que todos los botones sean visibles
+        card.setPreferredSize(new Dimension(900, 280));
+        card.setMinimumSize(new Dimension(600, 280));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
 
         // ========== PANEL IZQUIERDO: Información del anuncio ==========
         GridBagConstraints left = new GridBagConstraints();
@@ -1165,6 +1288,12 @@ public class AppMovilMock extends JFrame {
             btnChat.setFont(new Font("SansSerif", Font.BOLD, 12));
             btnChat.addActionListener(e -> iniciarChatConAnuncio(anuncio));
             rightPanel.add(btnChat);
+            rightPanel.add(Box.createVerticalStrut(6));
+
+            // Botón Lanzar oferta
+            JButton btnOferta = crearBotonOferta(anuncio);
+            btnOferta.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            rightPanel.add(btnOferta);
         }
 
         card.add(rightPanel, right);
@@ -1454,5 +1583,311 @@ public class AppMovilMock extends JFrame {
                 JOptionPane.showMessageDialog(AppMovilMock.this, "Error creando el anuncio", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    /**
+     * Convierte una imagen BufferedImage a String Base64
+     */
+    private String imageToBase64(BufferedImage image) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", baos);
+            byte[] bytes = baos.toByteArray();
+            return Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Convierte un ImageIcon a String Base64
+     */
+    private String iconToBase64(ImageIcon icon) {
+        try {
+            BufferedImage bi = new BufferedImage(
+                icon.getIconWidth(),
+                icon.getIconHeight(),
+                BufferedImage.TYPE_INT_ARGB
+            );
+            Graphics2D g2d = bi.createGraphics();
+            icon.paintIcon(null, g2d, 0, 0);
+            g2d.dispose();
+            return imageToBase64(bi);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Convierte String Base64 a ImageIcon
+     */
+    private ImageIcon base64ToImageIcon(String base64, int size) {
+        try {
+            byte[] bytes = Base64.getDecoder().decode(base64);
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (img != null) {
+                return new ImageIcon(scaleImage(img, size, size));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return createDefaultCompanyIcon(size);
+    }
+
+    /**
+     * Escala una imagen manteniendo aspecto
+     */
+    private Image scaleImage(BufferedImage original, int maxWidth, int maxHeight) {
+        int width = original.getWidth();
+        int height = original.getHeight();
+
+        double scale = Math.min((double)maxWidth / width, (double)maxHeight / height);
+        int newWidth = (int)(width * scale);
+        int newHeight = (int)(height * scale);
+
+        return original.getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
+    }
+
+    /**
+     * Crea un icono por defecto para empresas
+     */
+    private ImageIcon createDefaultCompanyIcon(int size) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Fondo degradado
+        GradientPaint gradient = new GradientPaint(
+            0, 0, new Color(80, 120, 200),
+            size, size, new Color(50, 90, 160)
+        );
+        g2d.setPaint(gradient);
+        g2d.fillRoundRect(0, 0, size, size, size/5, size/5);
+
+        // Icono de empresa (edificio simplificado)
+        g2d.setColor(Color.WHITE);
+        int buildingWidth = size * 3 / 5;
+        int buildingHeight = size * 4 / 5;
+        int buildingX = (size - buildingWidth) / 2;
+        int buildingY = (size - buildingHeight) / 2 + size / 10;
+
+        g2d.fillRect(buildingX, buildingY, buildingWidth, buildingHeight);
+
+        // Ventanas
+        g2d.setColor(new Color(80, 120, 200));
+        int windowSize = buildingWidth / 5;
+        int spacing = windowSize / 2;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 2; col++) {
+                int wx = buildingX + spacing + col * (windowSize + spacing);
+                int wy = buildingY + spacing + row * (windowSize + spacing);
+                g2d.fillRect(wx, wy, windowSize, windowSize);
+            }
+        }
+
+        g2d.dispose();
+        return new ImageIcon(img);
+    }
+
+    /**
+     * Crea el botón "Lanzar oferta" dinámicamente según el estado de la contratación
+     */
+    private JButton crearBotonOferta(Anuncio anuncio) {
+        Integer idUser = obtenerIdUserInt();
+        String nifEmpresa = anuncio.getEmpresaNif();
+        String idAnuncio = anuncio.getId();
+
+        JButton btnOferta = new JButton();
+        btnOferta.setUI(new javax.swing.plaf.basic.BasicButtonUI());
+        btnOferta.setFocusPainted(false);
+        btnOferta.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnOferta.setPreferredSize(new Dimension(145, 34));
+        btnOferta.setMinimumSize(new Dimension(145, 34));
+        btnOferta.setMaximumSize(new Dimension(145, 34));
+        btnOferta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        // Verificar el estado de la contratación en segundo plano
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() {
+                if (idUser == null || nifEmpresa == null || idAnuncio == null) return null;
+                return contratacionApi.getEstado(nifEmpresa, idUser, idAnuncio);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String estado = get();
+
+                    if (estado == null) {
+                        // No hay contratación, mostrar botón "Lanzar oferta"
+                        btnOferta.setText("🚀 Lanzar oferta");
+                        btnOferta.setBackground(new Color(40, 167, 69));
+                        btnOferta.setForeground(Color.WHITE);
+                        btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(40, 167, 69)));
+                        btnOferta.setEnabled(true);
+                        btnOferta.addActionListener(e -> lanzarOferta(anuncio, btnOferta));
+                    } else {
+                        // Ya existe contratación, mostrar estado
+                        switch (estado) {
+                            case "activo":
+                                btnOferta.setText("✅ Contratado");
+                                btnOferta.setBackground(new Color(220, 255, 220));
+                                btnOferta.setForeground(new Color(0, 120, 0));
+                                btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(0, 180, 0)));
+                                btnOferta.setEnabled(false);
+                                break;
+                            case "terminado":
+                                btnOferta.setText("⏳ Pendiente valorar");
+                                btnOferta.setBackground(new Color(255, 245, 200));
+                                btnOferta.setForeground(new Color(180, 120, 0));
+                                btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(220, 160, 0)));
+                                btnOferta.setEnabled(false);
+                                break;
+                            case "valorado":
+                                btnOferta.setText("⭐ Valorado");
+                                btnOferta.setBackground(new Color(220, 235, 255));
+                                btnOferta.setForeground(new Color(40, 80, 180));
+                                btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(80, 140, 220)));
+                                btnOferta.setEnabled(false);
+                                break;
+                            default:
+                                btnOferta.setText("🚀 Lanzar oferta");
+                                btnOferta.setBackground(new Color(40, 167, 69));
+                                btnOferta.setForeground(Color.WHITE);
+                                btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(40, 167, 69)));
+                                btnOferta.setEnabled(true);
+                                btnOferta.addActionListener(e -> lanzarOferta(anuncio, btnOferta));
+                        }
+                    }
+                } catch (Exception ex) {
+                    // En caso de error, mostrar botón por defecto
+                    btnOferta.setText("🚀 Lanzar oferta");
+                    btnOferta.setBackground(new Color(40, 167, 69));
+                    btnOferta.setForeground(Color.WHITE);
+                    btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(40, 167, 69)));
+                    btnOferta.setEnabled(true);
+                    btnOferta.addActionListener(e -> lanzarOferta(anuncio, btnOferta));
+                }
+            }
+        };
+        worker.execute();
+
+        // Mientras tanto, mostrar botón en estado de carga
+        btnOferta.setText("⏳ Cargando...");
+        btnOferta.setBackground(new Color(240, 240, 240));
+        btnOferta.setForeground(new Color(100, 100, 100));
+        btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(200, 200, 200)));
+        btnOferta.setEnabled(false);
+
+        return btnOferta;
+    }
+
+    private void lanzarOferta(Anuncio anuncio, JButton btnOferta) {
+        Integer idUser = obtenerIdUserInt();
+        String nifEmpresa = anuncio.getEmpresaNif();
+        String idAnuncio = anuncio.getId();
+
+        if (idUser == null || nifEmpresa == null || idAnuncio == null) {
+            JOptionPane.showMessageDialog(this,
+                "Error: No se pudo obtener la información necesaria.",
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int confirmacion = JOptionPane.showConfirmDialog(
+            this,
+            "¿Deseas contratar este servicio?\n\n" +
+            "Empresa: " + (anuncio.getEmpresaNif() != null ? anuncio.getEmpresaNif() : "N/A") + "\n" +
+            "Servicio: " + anuncio.getDescripcion() + "\n" +
+            "Categoría: " + anuncio.getCategoria(),
+            "Confirmar contratación",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (confirmacion == JOptionPane.YES_OPTION) {
+            SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
+                @Override
+                protected Boolean doInBackground() {
+                    return contratacionApi.crearContratacion(nifEmpresa, idUser, idAnuncio);
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        Boolean ok = get();
+
+                        if (Boolean.TRUE.equals(ok)) {
+                            JOptionPane.showMessageDialog(
+                                AppMovilMock.this,
+                                "¡Contratación realizada con éxito!\n" +
+                                "Puedes ver tus contrataciones en la pestaña 📋 Contrataciones.",
+                                "Contratación exitosa",
+                                JOptionPane.INFORMATION_MESSAGE
+                            );
+
+                            btnOferta.setText("✅ Contratado");
+                            btnOferta.setBackground(new Color(220, 255, 220));
+                            btnOferta.setForeground(new Color(0, 120, 0));
+                            btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(0, 180, 0)));
+                            btnOferta.setEnabled(false);
+                        } else {
+                            JOptionPane.showMessageDialog(
+                                AppMovilMock.this,
+                                "No se pudo realizar la contratación.\nPuede que ya exista una contratación activa.",
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE
+                            );
+                        }
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(
+                            AppMovilMock.this,
+                            "Error al procesar la contratación: " + ex.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                        );
+                    }
+                }
+            };
+            worker.execute();
+        }
+    }
+
+    /**
+     * Obtiene el ID del usuario como Integer
+     */
+    private Integer obtenerIdUserInt() {
+        try {
+            Object id = currentUser.getClass().getMethod("getId").invoke(currentUser);
+            if (id instanceof String) {
+                String idStr = (String) id;
+                if (idStr == null || idStr.isEmpty() || idStr.isBlank()) {
+                    // Si no hay ID, usamos el email como identificador único
+                    // Generamos un hash del email para tener un ID numérico
+                    String email = safeEmail();
+                    if (email != null) {
+                        return Math.abs(email.hashCode());
+                    }
+                    return null;
+                }
+                return Integer.parseInt(idStr);
+            } else if (id instanceof Integer) {
+                return (Integer) id;
+            } else if (id instanceof Number) {
+                return ((Number) id).intValue();
+            }
+        } catch (NumberFormatException e) {
+            // Si falla el parseo, intentamos usar el hash del email
+            String email = safeEmail();
+            if (email != null) {
+                return Math.abs(email.hashCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

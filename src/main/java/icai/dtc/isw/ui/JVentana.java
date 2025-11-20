@@ -71,7 +71,6 @@ public class JVentana extends JFrame {
                         if (u != null) {
                             SwingUtilities.invokeLater(() -> {
                                 AppMovilMock app = new AppMovilMock(u);
-                                // === Pantalla completa también en la app principal ===
                                 app.setExtendedState(JFrame.MAXIMIZED_BOTH);
                                 app.setResizable(false);
                                 app.setVisible(true);

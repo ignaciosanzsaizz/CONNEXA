@@ -19,11 +19,11 @@ import icai.dtc.isw.configuration.PropertiesISW;
 import icai.dtc.isw.controler.BusquedasControler;
 import icai.dtc.isw.controler.ChatControler;
 import icai.dtc.isw.controler.FavoritosController;
-import icai.dtc.isw.controler.PagosControler;
 import icai.dtc.isw.controler.UserControler;
-import icai.dtc.isw.domain.Pago;
 import icai.dtc.isw.domain.User;
 import icai.dtc.isw.message.Message;
+import icai.dtc.isw.controler.PagosControler;
+import icai.dtc.isw.domain.Pago;
 
 public class SocketServer extends Thread {
     public static int port = Integer.parseInt(PropertiesISW.getInstance().getProperty("port"));
@@ -129,14 +129,15 @@ public class SocketServer extends Thread {
 
                 // Guardar/actualizar por NIF (PK)
                 case "/empresa/save": {
-                    String mail      = (String) session.get("mail");
-                    String empresa   = (String) session.get("empresa");
-                    String nif       = (String) session.get("nif");       // <-- clave primaria
-                    String sector    = (String) session.get("sector");
-                    String ubicacion = (String) session.get("ubicacion");
+                    String mail       = (String) session.get("mail");
+                    String empresa    = (String) session.get("empresa");
+                    String nif        = (String) session.get("nif");       // <-- clave primaria
+                    String sector     = (String) session.get("sector");
+                    String ubicacion  = (String) session.get("ubicacion");
+                    String fotoPerfil = (String) session.get("fotoPerfil");
 
                     icai.dtc.isw.controler.EmpresaControler ec = new icai.dtc.isw.controler.EmpresaControler();
-                    boolean ok = ec.save(mail, empresa, nif, sector, ubicacion);
+                    boolean ok = ec.save(mail, empresa, nif, sector, ubicacion, fotoPerfil);
 
                     mensajeOut.setContext("/empresaSaveResponse");
                     session.put("ok", ok);
@@ -370,14 +371,120 @@ public class SocketServer extends Thread {
                     objectOutputStream.flush();
                     break;
                 }
-                // ===== PAGOS =====
+
+                // ===== CONTRATACIONES =====
+
+                case "/contratacion/crear": {
+                    String nifEmpresa = (String) session.get("nifEmpresa");
+                    Number idUserNumber = (Number) session.get("idUser");
+                    Integer idUser = idUserNumber != null ? idUserNumber.intValue() : null;
+                    String idAnuncio = (String) session.get("idAnuncio");
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    boolean ok = cc.crearContratacion(nifEmpresa, idUser, idAnuncio);
+
+                    mensajeOut.setContext("/contratacionCrearResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "CONTRATACION_CREATE_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/contratacion/existe": {
+                    String nifEmpresa = (String) session.get("nifEmpresa");
+                    Number idUserNumber = (Number) session.get("idUser");
+                    Integer idUser = idUserNumber != null ? idUserNumber.intValue() : null;
+                    String idAnuncio = (String) session.get("idAnuncio");
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    boolean existe = cc.existeContratacion(nifEmpresa, idUser, idAnuncio);
+
+                    mensajeOut.setContext("/contratacionExisteResponse");
+                    session.put("existe", existe);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/contratacion/list": {
+                    Number idUserNumber = (Number) session.get("idUser");
+                    Integer idUser = idUserNumber != null ? idUserNumber.intValue() : null;
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    java.util.List<icai.dtc.isw.domain.Contratacion> contrataciones = cc.getContratacionesByUser(idUser);
+
+
+                    mensajeOut.setContext("/contratacionListResponse");
+                    session.put("contrataciones", contrataciones);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/contratacion/terminar": {
+                    String nifEmpresa = (String) session.get("nifEmpresa");
+                    Number idUserNumber = (Number) session.get("idUser");
+                    Integer idUser = idUserNumber != null ? idUserNumber.intValue() : null;
+                    String idAnuncio = (String) session.get("idAnuncio");
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    boolean ok = cc.terminarContrato(nifEmpresa, idUser, idAnuncio);
+
+                    mensajeOut.setContext("/contratacionTerminarResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "CONTRATACION_TERMINAR_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/contratacion/valorar": {
+                    String nifEmpresa = (String) session.get("nifEmpresa");
+                    Number idUserNumber = (Number) session.get("idUser");
+                    Integer idUser = idUserNumber != null ? idUserNumber.intValue() : null;
+                    String idAnuncio = (String) session.get("idAnuncio");
+                    Number calidadNumber = (Number) session.get("calidad");
+                    Float calidad = calidadNumber != null ? calidadNumber.floatValue() : null;
+                    String comentarios = (String) session.get("comentarios");
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    boolean ok = cc.valorarContratacion(nifEmpresa, idUser, idAnuncio, calidad, comentarios);
+
+                    mensajeOut.setContext("/contratacionValorarResponse");
+                    session.put("ok", ok);
+                    if (!ok) session.put("error", "CONTRATACION_VALORAR_FAILED");
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
+                case "/contratacion/estado": {
+                    String nifEmpresa = (String) session.get("nifEmpresa");
+                    Number idUserNumber = (Number) session.get("idUser");
+                    Integer idUser = idUserNumber != null ? idUserNumber.intValue() : null;
+                    String idAnuncio = (String) session.get("idAnuncio");
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    String estado = cc.getEstado(nifEmpresa, idUser, idAnuncio);
+
+                    mensajeOut.setContext("/contratacionEstadoResponse");
+                    session.put("estado", estado);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
                 case "/pago/save": {
-                    icai.dtc.isw.domain.Pago pago =
-                            (icai.dtc.isw.domain.Pago) session.get("pago");
+                    // El cliente manda un objeto Pago ya relleno en session["pago"]
+                    Pago pago = (Pago) session.get("pago");
 
-                    icai.dtc.isw.controler.PagosControler pc =
-                            new icai.dtc.isw.controler.PagosControler();
-
+                    PagosControler pc = new PagosControler();
                     boolean ok = pc.save(pago);
 
                     mensajeOut.setContext("/pagoSaveResponse");
@@ -392,6 +499,7 @@ public class SocketServer extends Thread {
                 }
 
                 case "/pago/get": {
+                    // El cliente manda el id del usuario en session["userId"] como String
                     String userIdStr = (String) session.get("userId");
                     Integer userId = null;
                     try {
@@ -400,15 +508,12 @@ public class SocketServer extends Thread {
                         ex.printStackTrace();
                     }
 
-                    icai.dtc.isw.controler.PagosControler pc =
-                            new icai.dtc.isw.controler.PagosControler();
-
-                    icai.dtc.isw.domain.Pago pago =
-                            (userId != null) ? pc.getPagoByUserId(userId) : null;
+                    PagosControler pc = new PagosControler();
+                    Pago pago = (userId != null) ? pc.getPagoByUserId(userId) : null;
 
                     mensajeOut.setContext("/pagoGetResponse");
-                    session.put("pago", pago);
-                    session.put("ok", pago != null);
+                    session.put("pago", pago);       // puede ser null si no hay
+                    session.put("ok", pago != null); // true si existe, false si no
                     mensajeOut.setSession(session);
                     objectOutputStream.writeObject(mensajeOut);
                     objectOutputStream.flush();
@@ -416,6 +521,7 @@ public class SocketServer extends Thread {
                 }
 
                 case "/pago/delete": {
+                    // El cliente manda el id del usuario en session["userId"] como String
                     String userIdStr = (String) session.get("userId");
                     Integer userId = null;
                     try {
@@ -424,9 +530,7 @@ public class SocketServer extends Thread {
                         ex.printStackTrace();
                     }
 
-                    icai.dtc.isw.controler.PagosControler pc =
-                            new icai.dtc.isw.controler.PagosControler();
-
+                    PagosControler pc = new PagosControler();
                     boolean ok = (userId != null) && pc.deleteByUserId(userId);
 
                     mensajeOut.setContext("/pagoDeleteResponse");
@@ -439,7 +543,6 @@ public class SocketServer extends Thread {
                     objectOutputStream.flush();
                     break;
                 }
-
                 default:
                     System.out.println("\nParámetro no encontrado: " + mensajeIn.getContext());
                     break;

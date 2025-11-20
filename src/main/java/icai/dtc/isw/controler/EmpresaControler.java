@@ -12,7 +12,7 @@ public class EmpresaControler {
     }
 
     /** Guardar/actualizar colisionando por NIF (PK real). */
-    public boolean save(String mail, String empresa, String nif, String sector, String ubicacion) {
+    public boolean save(String mail, String empresa, String nif, String sector, String ubicacion, String fotoPerfil) {
         if (mail == null || mail.isBlank()
                 || empresa == null || empresa.isBlank()
                 || nif == null || nif.isBlank()
@@ -20,7 +20,7 @@ public class EmpresaControler {
                 || ubicacion == null || ubicacion.isBlank()) {
             return false;
         }
-        Empresa e = new Empresa(mail, empresa, nif, sector, ubicacion);
+        Empresa e = new Empresa(mail, empresa, nif, sector, ubicacion, fotoPerfil);
         return dao.upsert(e);
     }
 

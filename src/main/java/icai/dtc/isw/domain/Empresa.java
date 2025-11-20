@@ -9,7 +9,8 @@ public class Empresa implements Serializable {
     private String empresa;
     private String nif;
     private String sector;
-    private String ubicacion;  // NUEVO
+    private String ubicacion;
+    private String fotoPerfil; // Base64 de la imagen de perfil
 
     public Empresa() {}
 
@@ -19,6 +20,15 @@ public class Empresa implements Serializable {
         this.nif = nif;
         this.sector = sector;
         this.ubicacion = ubicacion;
+    }
+
+    public Empresa(String mail, String empresa, String nif, String sector, String ubicacion, String fotoPerfil) {
+        this.mail = mail;
+        this.empresa = empresa;
+        this.nif = nif;
+        this.sector = sector;
+        this.ubicacion = ubicacion;
+        this.fotoPerfil = fotoPerfil;
     }
 
     public String getMail() { return mail; }
@@ -35,4 +45,7 @@ public class Empresa implements Serializable {
 
     public String getUbicacion() { return ubicacion; }
     public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
+
+    public String getFotoPerfil() { return fotoPerfil; }
+    public void setFotoPerfil(String fotoPerfil) { this.fotoPerfil = fotoPerfil; }
 }

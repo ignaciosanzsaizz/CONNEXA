@@ -9,6 +9,7 @@ import java.sql.SQLException;
 
 public class PagosDAO {
 
+    /** Versión de bajo nivel con conexión existente */
     public void upsertPago(Connection con, Pago pago) throws SQLException {
         String sql = "INSERT INTO pagos (id, nombre, numerotarjeta, fechacaducidad, cvv) " +
                 "VALUES (?, ?, ?, ?, ?) " +

@@ -38,8 +38,10 @@ public class CustomerDAO {
 			try (ResultSet rs = pst.executeQuery()) {
 				if (rs.next()) {
 					// Orden del constructor: (id, username, password, email)
+					// Convertir el ID de Integer a String
+					int userId = rs.getInt("id");
 					return new User(
-							rs.getString("id"),
+							String.valueOf(userId),
 							rs.getString("username"),
 							rs.getString("password"),
 							rs.getString("mail")

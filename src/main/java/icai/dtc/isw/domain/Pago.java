@@ -3,14 +3,14 @@ package icai.dtc.isw.domain;
 import java.io.Serializable;
 
 public class Pago implements Serializable {
+
     private static final long serialVersionUID = 1L;
 
-    // Coincide con users.id (INTEGER)
-    private Integer id;
-    private String nombre;
-    private String numeroTarjeta;
-    private String fechaCaducidad;
-    private String cvv;
+    private Integer id;              // Coincide con users.id
+    private String nombre;           // Titular
+    private String numeroTarjeta;    // 16 dígitos, sin espacios
+    private String fechaCaducidad;   // MM/YY
+    private String cvv;              // 3 dígitos
 
     public Pago() {}
 

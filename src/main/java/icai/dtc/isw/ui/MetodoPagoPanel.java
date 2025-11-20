@@ -200,6 +200,7 @@ public class MetodoPagoPanel extends JPanel {
 
         root.add(card, BorderLayout.CENTER);
 
+        //  FOOTER
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         footer.setOpaque(false);
         footer.setBorder(new EmptyBorder(12, 0, 0, 0));
@@ -224,7 +225,7 @@ public class MetodoPagoPanel extends JPanel {
                 return;
             }
 
-            // Validación número de tarjeta: 16 dígitos
+            //  Validación número de tarjeta: 16 dígitos
             String numeroSinEspacios = numero.replaceAll("\\s+", "");
             if (!numeroSinEspacios.matches("\\d{16}")) {
                 JOptionPane.showMessageDialog(dialog,
@@ -234,7 +235,7 @@ public class MetodoPagoPanel extends JPanel {
                 return;
             }
 
-            // Validación fecha: formato MM/YY con mes 01-12
+            //  Validación fecha: formato MM/YY con mes 01-12
             if (!fecha.matches("(0[1-9]|1[0-2])/\\d{2}")) {
                 JOptionPane.showMessageDialog(dialog,
                         "La fecha de caducidad debe tener el formato MM/YY y un mes válido (01-12).",

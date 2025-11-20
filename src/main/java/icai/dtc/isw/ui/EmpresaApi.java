@@ -16,14 +16,15 @@ public class EmpresaApi {
         return (o instanceof Empresa) ? (Empresa) o : null;
     }
 
-    public boolean saveEmpresa(String mail, String empresa, String nif, String sector, String ubicacion) {
+    public boolean saveEmpresa(String mail, String empresa, String nif, String sector, String ubicacion, String fotoPerfil) {
         Client c = new Client();
         HashMap<String,Object> s = new HashMap<>();
         s.put("mail", mail);
         s.put("empresa", empresa);
         s.put("nif", nif);
         s.put("sector", sector);
-        s.put("ubicacion", ubicacion); // NUEVO
+        s.put("ubicacion", ubicacion);
+        s.put("fotoPerfil", fotoPerfil);
         s = c.sentMessage("/empresa/save", s);
         return Boolean.TRUE.equals(s.get("ok"));
     }
