@@ -1,5 +1,11 @@
 package icai.dtc.isw.ui;
 
+/**
+ * Ventana principal de escritorio encargada de mostrar las pantallas
+ * de bienvenida, login y registro antes de lanzar la simulación de la
+ * app móvil. Gestiona la navegación básica entre paneles Swing.
+ */
+
 import icai.dtc.isw.domain.User;
 
 import javax.swing.*;

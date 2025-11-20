@@ -87,13 +87,34 @@ public class Client {
 				session = mensajeVuelta.getSession();
 				break;
 
-			default:
+			case "/anuncioSearchResponse":
+			case "/favoritosToggleResponse":
+			case "/favoritosIsResponse":
+			case "/favoritosListResponse":
+			case "/chatListResponse":
+			case "/chatGetOrCreateResponse":
+			case "/chatMessagesResponse":
+			case "/chatSendResponse":
+			case "/chatReadResponse":
+				session = mensajeVuelta.getSession();
+				break;
+			case "/pagoSaveResponse":
+				session = mensajeVuelta.getSession();
+				break;
 
+			case "/pagoGetResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
+			case "/pagoDeleteResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
+			default:
 				System.out.println("\nError a la vuelta");
 				break;
 
 		}
-		//System.out.println("3.- En Main.- El valor devuelto es: "+((String)mensajeVuelta.getSession().get("Nombre")));
 		return session;
 	}
 
