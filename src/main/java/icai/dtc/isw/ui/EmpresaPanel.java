@@ -4,10 +4,17 @@ import icai.dtc.isw.domain.Anuncio;
 import icai.dtc.isw.domain.Empresa;
 import icai.dtc.isw.domain.User;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.List;
 
 public class EmpresaPanel extends JPanel {
@@ -94,19 +101,70 @@ public class EmpresaPanel extends JPanel {
 
         if (cboSector.getItemCount() > 0) cboSector.setSelectedIndex(0);
 
+        // Panel para la foto de perfil
+        JLabel lblFotoPreview = new JLabel();
+        lblFotoPreview.setPreferredSize(new Dimension(120, 120));
+        lblFotoPreview.setBorder(BorderFactory.createLineBorder(new Color(200, 210, 225), 2));
+        lblFotoPreview.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Imagen por defecto
+        ImageIcon defaultIcon = createDefaultCompanyIcon(120);
+        lblFotoPreview.setIcon(defaultIcon);
+
+        final String[] selectedImageBase64 = {null}; // Para almacenar la imagen seleccionada
+
+        JButton btnSeleccionarFoto = UIUtils.secondaryButton("Seleccionar foto");
+        btnSeleccionarFoto.setPreferredSize(new Dimension(160, 35));
+        btnSeleccionarFoto.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Seleccionar foto de perfil");
+            FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                "Imágenes (*.jpg, *.jpeg, *.png)", "jpg", "jpeg", "png");
+            fileChooser.setFileFilter(filter);
+
+            int result = fileChooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                try {
+                    BufferedImage img = ImageIO.read(selectedFile);
+                    if (img != null) {
+                        // Convertir a base64
+                        selectedImageBase64[0] = imageToBase64(img);
+                        // Mostrar preview
+                        ImageIcon preview = new ImageIcon(scaleImage(img, 120, 120));
+                        lblFotoPreview.setIcon(preview);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this,
+                        "Error al cargar la imagen: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        JPanel fotoPanel = new JPanel(new BorderLayout(8, 8));
+        fotoPanel.setBackground(Color.WHITE);
+        JPanel fotoPreviewPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        fotoPreviewPanel.setBackground(Color.WHITE);
+        fotoPreviewPanel.add(lblFotoPreview);
+        fotoPanel.add(fotoPreviewPanel, BorderLayout.CENTER);
+        fotoPanel.add(btnSeleccionarFoto, BorderLayout.SOUTH);
+
         JPanel form = new JPanel(new GridBagLayout());
         form.setBorder(new EmptyBorder(8,8,8,8));
         form.setBackground(Color.WHITE);
 
         GridBagConstraints gbc = UIUtils.baseGbc();
-        gbc.gridy=0; form.add(new JLabel("Nombre de la empresa:"), gbc);
-        gbc.gridy=1; form.add(txtNombre, gbc);
-        gbc.gridy=2; form.add(new JLabel("NIF/CIF:"), gbc);
-        gbc.gridy=3; form.add(txtNif, gbc);
-        gbc.gridy=4; form.add(new JLabel("Sector:"), gbc);
-        gbc.gridy=5; form.add(cboSector, gbc);
-        gbc.gridy=6; form.add(new JLabel("Ubicación:"), gbc);
-        gbc.gridy=7; form.add(txtUbicacion, gbc);
+        gbc.gridy=0; form.add(new JLabel("Foto de perfil:"), gbc);
+        gbc.gridy=1; form.add(fotoPanel, gbc);
+        gbc.gridy=2; form.add(new JLabel("Nombre de la empresa:"), gbc);
+        gbc.gridy=3; form.add(txtNombre, gbc);
+        gbc.gridy=4; form.add(new JLabel("NIF/CIF:"), gbc);
+        gbc.gridy=5; form.add(txtNif, gbc);
+        gbc.gridy=6; form.add(new JLabel("Sector:"), gbc);
+        gbc.gridy=7; form.add(cboSector, gbc);
+        gbc.gridy=8; form.add(new JLabel("Ubicación:"), gbc);
+        gbc.gridy=9; form.add(txtUbicacion, gbc);
 
         int r = JOptionPane.showConfirmDialog(
                 this, form, "Completar perfil de empresa",
@@ -123,7 +181,13 @@ public class EmpresaPanel extends JPanel {
                 return;
             }
 
-            boolean ok = api.saveEmpresa(safeEmail(), nombre, nif, sector, ubicacion);
+            // Si no se seleccionó foto, usar la imagen por defecto
+            String fotoPerfil = selectedImageBase64[0];
+            if (fotoPerfil == null) {
+                fotoPerfil = iconToBase64(defaultIcon);
+            }
+
+            boolean ok = api.saveEmpresa(safeEmail(), nombre, nif, sector, ubicacion, fotoPerfil);
             if (ok) {
                 JOptionPane.showMessageDialog(this, "Perfil guardado correctamente.", "Mi Empresa", JOptionPane.INFORMATION_MESSAGE);
 
@@ -347,5 +411,111 @@ public class EmpresaPanel extends JPanel {
      */
     public void recargarAnuncios() {
         SwingUtilities.invokeLater(() -> cargarEstado());
+    }
+
+    /**
+     * Convierte una imagen BufferedImage a String Base64
+     */
+    private String imageToBase64(BufferedImage image) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", baos);
+            byte[] bytes = baos.toByteArray();
+            return Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Convierte un ImageIcon a String Base64
+     */
+    private String iconToBase64(ImageIcon icon) {
+        try {
+            BufferedImage bi = new BufferedImage(
+                icon.getIconWidth(),
+                icon.getIconHeight(),
+                BufferedImage.TYPE_INT_ARGB
+            );
+            Graphics2D g2d = bi.createGraphics();
+            icon.paintIcon(null, g2d, 0, 0);
+            g2d.dispose();
+            return imageToBase64(bi);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Convierte String Base64 a ImageIcon
+     */
+    private ImageIcon base64ToImageIcon(String base64, int size) {
+        try {
+            byte[] bytes = Base64.getDecoder().decode(base64);
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (img != null) {
+                return new ImageIcon(scaleImage(img, size, size));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return createDefaultCompanyIcon(size);
+    }
+
+    /**
+     * Escala una imagen manteniendo aspecto
+     */
+    private Image scaleImage(BufferedImage original, int maxWidth, int maxHeight) {
+        int width = original.getWidth();
+        int height = original.getHeight();
+
+        double scale = Math.min((double)maxWidth / width, (double)maxHeight / height);
+        int newWidth = (int)(width * scale);
+        int newHeight = (int)(height * scale);
+
+        return original.getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
+    }
+
+    /**
+     * Crea un icono por defecto para empresas
+     */
+    private ImageIcon createDefaultCompanyIcon(int size) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Fondo degradado
+        GradientPaint gradient = new GradientPaint(
+            0, 0, new Color(80, 120, 200),
+            size, size, new Color(50, 90, 160)
+        );
+        g2d.setPaint(gradient);
+        g2d.fillRoundRect(0, 0, size, size, size/5, size/5);
+
+        // Icono de empresa (edificio simplificado)
+        g2d.setColor(Color.WHITE);
+        int buildingWidth = size * 3 / 5;
+        int buildingHeight = size * 4 / 5;
+        int buildingX = (size - buildingWidth) / 2;
+        int buildingY = (size - buildingHeight) / 2 + size / 10;
+
+        g2d.fillRect(buildingX, buildingY, buildingWidth, buildingHeight);
+
+        // Ventanas
+        g2d.setColor(new Color(80, 120, 200));
+        int windowSize = buildingWidth / 5;
+        int spacing = windowSize / 2;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 2; col++) {
+                int wx = buildingX + spacing + col * (windowSize + spacing);
+                int wy = buildingY + spacing + row * (windowSize + spacing);
+                g2d.fillRect(wx, wy, windowSize, windowSize);
+            }
+        }
+
+        g2d.dispose();
+        return new ImageIcon(img);
     }
 }

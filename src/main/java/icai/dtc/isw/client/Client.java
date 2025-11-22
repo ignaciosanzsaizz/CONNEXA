@@ -87,6 +87,29 @@ public class Client {
 				session = mensajeVuelta.getSession();
 				break;
 
+			case "/anuncioSearchResponse":
+			case "/favoritosToggleResponse":
+			case "/favoritosIsResponse":
+			case "/favoritosListResponse":
+			case "/chatListResponse":
+			case "/chatGetOrCreateResponse":
+			case "/chatMessagesResponse":
+			case "/chatSendResponse":
+			case "/chatReadResponse":
+			case "/contratacionCrearResponse":
+			case "/contratacionExisteResponse":
+			case "/contratacionListResponse":
+			case "/contratacionTerminarResponse":
+			case "/contratacionValorarResponse":
+			case "/contratacionEstadoResponse":
+				session = mensajeVuelta.getSession();
+				break;
+			case "/pagoSaveResponse":
+			case "/pagoGetResponse":
+			case "/pagoDeleteResponse":
+				session = mensajeVuelta.getSession();
+				break;
+
 			default:
 
 				System.out.println("\nError a la vuelta");

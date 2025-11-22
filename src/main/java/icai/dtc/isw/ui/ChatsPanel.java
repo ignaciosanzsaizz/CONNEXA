@@ -1,6 +1,5 @@
 package icai.dtc.isw.ui;
 
-import icai.dtc.isw.controler.ChatControler;
 import icai.dtc.isw.domain.Chat;
 import icai.dtc.isw.domain.MensajeChat;
 import icai.dtc.isw.domain.User;
@@ -15,7 +14,7 @@ import java.util.List;
 
 public class ChatsPanel extends JPanel {
     private final User currentUser;
-    private final ChatControler chatControler;
+    private final ChatApi chatApi = new ChatApi();
     private final CardLayout cardLayout;
     private final JPanel mainPanel;
     private JPanel listaChatsPanel;
@@ -23,7 +22,6 @@ public class ChatsPanel extends JPanel {
 
     public ChatsPanel(User user) {
         this.currentUser = user;
-        this.chatControler = new ChatControler();
 
         setLayout(new BorderLayout());
         setBackground(new Color(245, 247, 250));
@@ -67,7 +65,7 @@ public class ChatsPanel extends JPanel {
     private void cargarChats() {
         listaChatsPanel.removeAll();
 
-        List<Chat> chats = chatControler.getChatsByUser(currentUser.getEmail());
+        List<Chat> chats = chatApi.getChatsByUser(currentUser.getEmail());
 
         if (chats == null || chats.isEmpty()) {
             JPanel emptyCard = crearTarjeta();
@@ -164,7 +162,7 @@ public class ChatsPanel extends JPanel {
         cardLayout.show(mainPanel, "CHAT_" + chat.getId());
 
         // Marcar mensajes como leídos
-        chatControler.marcarMensajesComoLeidos(chat.getId(), currentUser.getEmail());
+        chatApi.marcarMensajesComoLeidos(chat.getId(), currentUser.getEmail());
     }
 
     private JPanel crearVistaChat(Chat chat) {
@@ -240,7 +238,7 @@ public class ChatsPanel extends JPanel {
         btnEnviar.addActionListener(e -> {
             String contenido = txtMensaje.getText().trim();
             if (!contenido.isEmpty()) {
-                boolean enviado = chatControler.enviarMensaje(chat.getId(), currentUser.getEmail(), contenido);
+                boolean enviado = chatApi.enviarMensaje(chat.getId(), currentUser.getEmail(), contenido);
                 if (enviado) {
                     txtMensaje.setText("");
                     cargarMensajes(chat, mensajesPanel);
@@ -269,7 +267,7 @@ public class ChatsPanel extends JPanel {
     private void cargarMensajes(Chat chat, JPanel mensajesPanel) {
         mensajesPanel.removeAll();
 
-        List<MensajeChat> mensajes = chatControler.getMensajesByChat(chat.getId());
+        List<MensajeChat> mensajes = chatApi.getMensajesByChat(chat.getId());
 
         if (mensajes == null || mensajes.isEmpty()) {
             JLabel emptyLabel = new JLabel("No hay mensajes. ¡Sé el primero en escribir!");
