@@ -9,10 +9,15 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Locale;
 
 public class ChatsPanel extends JPanel {
+    private static final String OFERTA_PREFIX = "[OFERTA]|";
+    private static final NumberFormat CURRENCY_FORMAT = NumberFormat.getCurrencyInstance(new Locale("es", "ES"));
+
     private final User currentUser;
     private final ChatApi chatApi = new ChatApi();
     private final CardLayout cardLayout;
@@ -117,11 +122,8 @@ public class ChatsPanel extends JPanel {
         anuncioLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
         anuncioLabel.setForeground(new Color(95, 105, 125));
 
-        String ultimoMensaje = chat.getUltimoMensaje();
-        if (ultimoMensaje != null && ultimoMensaje.length() > 50) {
-            ultimoMensaje = ultimoMensaje.substring(0, 47) + "...";
-        }
-        JLabel mensajeLabel = new JLabel(ultimoMensaje != null ? ultimoMensaje : "Sin mensajes");
+        String resumen = obtenerResumenMensaje(chat.getUltimoMensaje());
+        JLabel mensajeLabel = new JLabel(resumen);
         mensajeLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         mensajeLabel.setForeground(new Color(70, 80, 100));
 
@@ -233,7 +235,16 @@ public class ChatsPanel extends JPanel {
         btnEnviar.setBorderPainted(false);
         btnEnviar.setFocusPainted(false);
         btnEnviar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnEnviar.setPreferredSize(new Dimension(80, 40));
+        btnEnviar.setPreferredSize(new Dimension(110, 40));
+
+        JButton btnOferta = new JButton("Enviar oferta");
+        btnOferta.setFont(new Font("SansSerif", Font.BOLD, 13));
+        btnOferta.setForeground(Color.WHITE);
+        btnOferta.setBackground(new Color(40, 167, 69));
+        btnOferta.setBorderPainted(false);
+        btnOferta.setFocusPainted(false);
+        btnOferta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnOferta.setPreferredSize(new Dimension(110, 40));
 
         btnEnviar.addActionListener(e -> {
             String contenido = txtMensaje.getText().trim();
@@ -254,14 +265,69 @@ public class ChatsPanel extends JPanel {
             }
         });
 
+        btnOferta.addActionListener(e -> lanzarOferta(chat, vistaChat, mensajesPanel, scrollMensajes));
+
+        JPanel buttonsPanel = new JPanel(new GridLayout(2, 1, 0, 8));
+        buttonsPanel.setOpaque(false);
+        buttonsPanel.add(btnEnviar);
+        buttonsPanel.add(btnOferta);
+
         inputPanel.add(scrollInput, BorderLayout.CENTER);
-        inputPanel.add(btnEnviar, BorderLayout.EAST);
+        inputPanel.add(buttonsPanel, BorderLayout.EAST);
 
         vistaChat.add(header, BorderLayout.NORTH);
         vistaChat.add(scrollMensajes, BorderLayout.CENTER);
         vistaChat.add(inputPanel, BorderLayout.SOUTH);
 
         return vistaChat;
+    }
+
+    private void lanzarOferta(Chat chat, JPanel vistaChat, JPanel mensajesPanel, JScrollPane scrollMensajes) {
+        JTextField txtPrecio = new JTextField();
+        JTextArea txtNota = new JTextArea(3, 20);
+        txtNota.setLineWrap(true);
+        txtNota.setWrapStyleWord(true);
+
+        JPanel form = new JPanel(new BorderLayout(0, 8));
+        form.add(new JLabel("Importe (€)"), BorderLayout.NORTH);
+        form.add(txtPrecio, BorderLayout.CENTER);
+        JScrollPane notaScroll = new JScrollPane(txtNota);
+        notaScroll.setBorder(BorderFactory.createTitledBorder("Notas (opcional)"));
+        form.add(notaScroll, BorderLayout.SOUTH);
+
+        int res = JOptionPane.showConfirmDialog(
+            vistaChat,
+            form,
+            "Enviar oferta",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE
+        );
+        if (res != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        double precio;
+        try {
+            precio = Double.parseDouble(txtPrecio.getText().trim().replace(",", "."));
+            if (precio < 0) throw new NumberFormatException("negative");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(vistaChat, "Importe inválido", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String nota = txtNota.getText().trim();
+        String payload = OFERTA_PREFIX + precio + "|" + nota;
+
+        boolean enviado = chatApi.enviarMensaje(chat.getId(), currentUser.getEmail(), payload);
+        if (enviado) {
+            cargarMensajes(chat, mensajesPanel);
+            SwingUtilities.invokeLater(() -> {
+                JScrollBar vertical = scrollMensajes.getVerticalScrollBar();
+                vertical.setValue(vertical.getMaximum());
+            });
+        } else {
+            JOptionPane.showMessageDialog(vistaChat, "Error al enviar la oferta", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void cargarMensajes(Chat chat, JPanel mensajesPanel) {
@@ -282,6 +348,12 @@ public class ChatsPanel extends JPanel {
 
             for (MensajeChat mensaje : mensajes) {
                 boolean esMio = mensaje.getRemitenteEmail().equals(currentUser.getEmail());
+
+                OfertaData oferta = extraerOferta(mensaje.getContenido());
+                if (oferta != null) {
+                    mensajesPanel.add(crearPanelMensajeOferta(mensaje, esMio, oferta, sdf));
+                    continue;
+                }
 
                 JPanel mensajePanel = new JPanel();
                 mensajePanel.setLayout(new BoxLayout(mensajePanel, BoxLayout.Y_AXIS));
@@ -332,6 +404,104 @@ public class ChatsPanel extends JPanel {
             mensajesPanel.revalidate();
             mensajesPanel.repaint();
         });
+    }
+
+    private static class OfertaData {
+        Double precio;
+        String precioTexto;
+        String nota;
+    }
+
+    private OfertaData extraerOferta(String contenido) {
+        if (contenido == null || !contenido.startsWith(OFERTA_PREFIX)) return null;
+        String payload = contenido.substring(OFERTA_PREFIX.length());
+        String[] parts = payload.split("\\|", 2);
+        OfertaData data = new OfertaData();
+        data.precioTexto = parts.length > 0 ? parts[0].trim() : "";
+
+        String normalizado = data.precioTexto.replace("€", "").replace(" ", "").trim();
+        if (normalizado.contains(",") && normalizado.contains(".")) {
+            normalizado = normalizado.replace(".", "").replace(",", ".");
+        } else if (normalizado.contains(",") && !normalizado.contains(".")) {
+            normalizado = normalizado.replace(",", ".");
+        }
+
+        try {
+            data.precio = Double.parseDouble(normalizado);
+        } catch (Exception ignored) {}
+        data.nota = parts.length > 1 ? parts[1] : null;
+        return data;
+    }
+
+    private JPanel crearPanelMensajeOferta(MensajeChat mensaje, boolean esMio, OfertaData oferta, SimpleDateFormat sdf) {
+        JPanel wrapper = new JPanel(new FlowLayout(esMio ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
+        wrapper.setOpaque(false);
+
+        JPanel card = new JPanel(new BorderLayout(8, 6));
+        Color fondo = esMio ? new Color(20, 120, 220) : new Color(245, 248, 255);
+        Color borde = esMio ? new Color(20, 120, 220) : new Color(200, 215, 240);
+        card.setBackground(fondo);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new UIUtils.RoundedBorder(12, borde),
+            new EmptyBorder(10, 12, 10, 12)
+        ));
+        card.setPreferredSize(new Dimension(320, 90));
+
+        JLabel titulo = new JLabel("Oferta enviada");
+        titulo.setFont(new Font("SansSerif", Font.BOLD, 13));
+        titulo.setForeground(esMio ? Color.WHITE : new Color(30, 33, 40));
+
+        String importe = oferta.precio != null
+            ? CURRENCY_FORMAT.format(oferta.precio)
+            : (oferta.precioTexto != null && !oferta.precioTexto.isBlank() ? oferta.precioTexto : "Oferta");
+        JLabel lblPrecio = new JLabel(importe);
+        lblPrecio.setFont(new Font("SansSerif", Font.BOLD, 18));
+        lblPrecio.setForeground(esMio ? Color.WHITE : new Color(25, 80, 170));
+
+        String nota = (oferta.nota != null && !oferta.nota.isBlank()) ? oferta.nota : "Sin notas adicionales";
+        JLabel lblNota = new JLabel("<html><body style='width: 260px'>" + nota.replace("\n", "<br>") + "</body></html>");
+        lblNota.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        lblNota.setForeground(esMio ? new Color(220, 235, 255) : new Color(70, 80, 100));
+
+        JLabel lblFecha = new JLabel(sdf.format(java.sql.Timestamp.valueOf(mensaje.getEnviadoEn())));
+        lblFecha.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        lblFecha.setForeground(esMio ? new Color(200, 220, 255) : new Color(120, 130, 150));
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        top.add(titulo, BorderLayout.WEST);
+        top.add(lblFecha, BorderLayout.EAST);
+
+        JPanel center = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        center.setOpaque(false);
+        center.add(lblPrecio);
+
+        JPanel bottom = new JPanel(new BorderLayout());
+        bottom.setOpaque(false);
+        bottom.add(lblNota, BorderLayout.CENTER);
+
+        card.add(top, BorderLayout.NORTH);
+        card.add(center, BorderLayout.CENTER);
+        card.add(bottom, BorderLayout.SOUTH);
+
+        wrapper.add(card);
+        wrapper.add(Box.createRigidArea(new Dimension(0, 8)));
+        return wrapper;
+    }
+
+    private String obtenerResumenMensaje(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "Sin mensajes";
+        }
+        OfertaData oferta = extraerOferta(raw);
+        if (oferta != null) {
+            String importe = oferta.precio != null
+                ? CURRENCY_FORMAT.format(oferta.precio)
+                : (oferta.precioTexto != null && !oferta.precioTexto.isBlank() ? oferta.precioTexto : "Oferta");
+            String nota = (oferta.nota != null && !oferta.nota.isBlank()) ? " · " + oferta.nota : "";
+            return "\uD83D\uDCBC Oferta: " + importe + nota;
+        }
+        return raw.length() > 50 ? raw.substring(0, 47) + "..." : raw;
     }
 
     private JPanel crearTarjeta() {

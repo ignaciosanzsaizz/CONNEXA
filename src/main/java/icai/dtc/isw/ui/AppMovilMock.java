@@ -438,12 +438,11 @@ public class AppMovilMock extends JFrame {
         return c.isVisible() && c.getParent() != null && c.getParent().isVisible();
     }
 
-    // Crea un botón con forma de estrella.
+    // Crea un botón con icono de estrella dibujado, para evitar problemas de fuentes/emoji.
     private JButton createStarButton(boolean isFavorito) {
-        JButton b = new JButton(isFavorito ? "⭐" : "☆");
+        JButton b = new JButton();
         b.setUI(new BasicButtonUI());
         b.setFocusPainted(false);
-        b.setFont(new Font("Segoe UI Emoji", Font.BOLD, 18));
         b.setPreferredSize(new Dimension(34, 34));
         b.setMinimumSize(new Dimension(34, 34));
         b.setMaximumSize(new Dimension(34, 34));
@@ -451,13 +450,15 @@ public class AppMovilMock extends JFrame {
 
         Color borderColor = isFavorito ? new Color(255, 195, 0) : new Color(220, 226, 235);
         Color bgColor = isFavorito ? new Color(255, 245, 210) : Color.WHITE;
+        Color fillStar = isFavorito ? new Color(255, 180, 0) : new Color(200, 205, 215);
+        Color strokeStar = isFavorito ? new Color(210, 140, 0) : new Color(160, 170, 185);
 
         b.setBackground(bgColor);
         b.setBorder(new UIUtils.RoundedBorder(10, borderColor));
         b.setContentAreaFilled(true);
         b.setOpaque(true);
 
-        b.setForeground(isFavorito ? new Color(255, 175, 0) : new Color(150, 160, 180));
+        b.setIcon(new StarIcon(20, fillStar, strokeStar, isFavorito));
 
         // Añadir hover simple
         b.addMouseListener(new MouseAdapter() {
@@ -470,6 +471,64 @@ public class AppMovilMock extends JFrame {
         });
 
         return b;
+    }
+
+    // Icono vectorial de estrella (rellena o contorno).
+    private static class StarIcon implements Icon {
+        private final int size;
+        private final Color fill;
+        private final Color stroke;
+        private final boolean filled;
+
+        StarIcon(int size, Color fill, Color stroke, boolean filled) {
+            this.size = size;
+            this.fill = fill;
+            this.stroke = stroke;
+            this.filled = filled;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            double cx = x + size / 2.0;
+            double cy = y + size / 2.0;
+            double rOuter = size / 2.0;
+            double rInner = rOuter * 0.5;
+
+            Polygon star = new Polygon();
+            for (int i = 0; i < 10; i++) {
+                double angle = Math.toRadians(-90 + i * 36);
+                double r = (i % 2 == 0) ? rOuter : rInner;
+                int px = (int) Math.round(cx + r * Math.cos(angle));
+                int py = (int) Math.round(cy + r * Math.sin(angle));
+                star.addPoint(px, py);
+            }
+
+            if (filled) {
+                g2.setColor(fill);
+                g2.fillPolygon(star);
+            } else {
+                g2.setColor(Color.WHITE);
+                g2.fillPolygon(star);
+            }
+
+            g2.setStroke(new BasicStroke(1.4f));
+            g2.setColor(stroke);
+            g2.drawPolygon(star);
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() {
+            return size;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return size;
+        }
     }
 
     // PERFIL con SCROLL y mapa (si existe empresa con ubicación)
