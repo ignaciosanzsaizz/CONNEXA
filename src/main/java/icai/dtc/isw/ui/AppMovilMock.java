@@ -10,6 +10,7 @@ import icai.dtc.isw.domain.Empresa;
 import icai.dtc.isw.domain.User;
 import icai.dtc.isw.domain.Anuncio;
 import icai.dtc.isw.domain.Chat;
+import icai.dtc.isw.domain.Contratacion;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -1165,10 +1166,10 @@ public class AppMovilMock extends JFrame {
                 new UIUtils.RoundedBorder(12, new Color(220, 230, 245)),
                 new EmptyBorder(12, 16, 12, 16)
         ));
-        // Altura de 280px para que todos los botones sean visibles
-        card.setPreferredSize(new Dimension(900, 280));
-        card.setMinimumSize(new Dimension(600, 280));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
+        // Altura de 320px para que todos los botones sean visibles
+        card.setPreferredSize(new Dimension(900, 320));
+        card.setMinimumSize(new Dimension(600, 320));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
 
         // ========== PANEL IZQUIERDO: Información del anuncio ==========
         GridBagConstraints left = new GridBagConstraints();
@@ -1280,17 +1281,17 @@ public class AppMovilMock extends JFrame {
         // Botón Chatear (solo si no es el propio anuncio)
         boolean esPropio = anuncio.getEmpresaNif() != null && anuncio.getEmpresaNif().equals(obtenerNifEmpresaActual());
         if (!esPropio && anuncio.getEmpresaEmail() != null) {
-            JButton btnChat = UIUtils.secondaryButton("💬 Chatear");
-            btnChat.setAlignmentX(Component.RIGHT_ALIGNMENT);
-            btnChat.setPreferredSize(new Dimension(145, 34));
-            btnChat.setMinimumSize(new Dimension(145, 34));
-            btnChat.setMaximumSize(new Dimension(145, 34));
-            btnChat.setFont(new Font("SansSerif", Font.BOLD, 12));
-            btnChat.addActionListener(e -> iniciarChatConAnuncio(anuncio));
-            rightPanel.add(btnChat);
+            // Botón Ver valoraciones
+            JButton btnValoraciones = UIUtils.secondaryButton("⭐ Ver valoraciones");
+            btnValoraciones.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            btnValoraciones.setPreferredSize(new Dimension(145, 34));
+            btnValoraciones.setMinimumSize(new Dimension(145, 34));
+            btnValoraciones.setMaximumSize(new Dimension(145, 34));
+            btnValoraciones.setFont(new Font("SansSerif", Font.BOLD, 12));
+            btnValoraciones.addActionListener(e -> mostrarValoraciones(anuncio.getEmpresaNif(), anuncio.getNombreEmpresa()));
+            rightPanel.add(btnValoraciones);
             rightPanel.add(Box.createVerticalStrut(6));
 
-            // Botón Lanzar oferta
             JButton btnOferta = crearBotonOferta(anuncio);
             btnOferta.setAlignmentX(Component.RIGHT_ALIGNMENT);
             rightPanel.add(btnOferta);
@@ -1692,6 +1693,150 @@ public class AppMovilMock extends JFrame {
     }
 
     /**
+     * Muestra las valoraciones y calificación promedio de una empresa
+     */
+    private void mostrarValoraciones(String nifEmpresa, String nombreEmpresa) {
+        SwingWorker<List<Contratacion>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<Contratacion> doInBackground() {
+                return contratacionApi.getValoraciones(nifEmpresa);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<Contratacion> valoraciones = get();
+
+                    // Calcular promedio de calidad
+                    double promedioCalidad = 0.0;
+                    int totalValoraciones = 0;
+
+                    if (valoraciones != null && !valoraciones.isEmpty()) {
+                        for (Contratacion c : valoraciones) {
+                            if (c.getCalidad() != null) {
+                                promedioCalidad += c.getCalidad();
+                                totalValoraciones++;
+                            }
+                        }
+                        if (totalValoraciones > 0) {
+                            promedioCalidad /= totalValoraciones;
+                        }
+                    }
+
+                    // Crear panel de valoraciones
+                    JPanel panelValoraciones = new JPanel();
+                    panelValoraciones.setLayout(new BoxLayout(panelValoraciones, BoxLayout.Y_AXIS));
+                    panelValoraciones.setBackground(Color.WHITE);
+                    panelValoraciones.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+                    // Título con nombre de empresa
+                    JLabel lblTitulo = new JLabel("Valoraciones de " + (nombreEmpresa != null ? nombreEmpresa : "la empresa"));
+                    lblTitulo.setFont(new Font("SansSerif", Font.BOLD, 16));
+                    lblTitulo.setForeground(new Color(20, 40, 80));
+                    lblTitulo.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    panelValoraciones.add(lblTitulo);
+                    panelValoraciones.add(Box.createVerticalStrut(10));
+
+                    // Mostrar promedio
+                    if (totalValoraciones > 0) {
+                        String estrellas = "⭐".repeat(Math.max(1, (int) Math.round(promedioCalidad)));
+                        JLabel lblPromedio = new JLabel(String.format("Calificación promedio: %s (%.1f/5.0) - %d valoración%s",
+                            estrellas, promedioCalidad, totalValoraciones, totalValoraciones != 1 ? "es" : ""));
+                        lblPromedio.setFont(new Font("SansSerif", Font.BOLD, 14));
+                        lblPromedio.setForeground(new Color(220, 140, 0));
+                        lblPromedio.setAlignmentX(Component.LEFT_ALIGNMENT);
+                        panelValoraciones.add(lblPromedio);
+                    } else {
+                        JLabel lblSinVal = new JLabel("Esta empresa aún no tiene valoraciones");
+                        lblSinVal.setFont(new Font("SansSerif", Font.ITALIC, 13));
+                        lblSinVal.setForeground(new Color(120, 130, 150));
+                        lblSinVal.setAlignmentX(Component.LEFT_ALIGNMENT);
+                        panelValoraciones.add(lblSinVal);
+                    }
+
+                    panelValoraciones.add(Box.createVerticalStrut(15));
+
+                    // Mostrar comentarios individuales
+                    if (valoraciones != null && !valoraciones.isEmpty()) {
+                        JLabel lblComentarios = new JLabel("Comentarios de clientes:");
+                        lblComentarios.setFont(new Font("SansSerif", Font.BOLD, 13));
+                        lblComentarios.setForeground(new Color(40, 50, 70));
+                        lblComentarios.setAlignmentX(Component.LEFT_ALIGNMENT);
+                        panelValoraciones.add(lblComentarios);
+                        panelValoraciones.add(Box.createVerticalStrut(10));
+
+                        for (Contratacion c : valoraciones) {
+                            if (c.getCalidad() != null || (c.getComentarios() != null && !c.getComentarios().isBlank())) {
+                                JPanel tarjetaComentario = new JPanel();
+                                tarjetaComentario.setLayout(new BoxLayout(tarjetaComentario, BoxLayout.Y_AXIS));
+                                tarjetaComentario.setBackground(new Color(248, 250, 252));
+                                tarjetaComentario.setBorder(BorderFactory.createCompoundBorder(
+                                    new UIUtils.RoundedBorder(8, new Color(220, 230, 245)),
+                                    new EmptyBorder(10, 12, 10, 12)
+                                ));
+                                tarjetaComentario.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                tarjetaComentario.setMaximumSize(new Dimension(500, Integer.MAX_VALUE));
+
+                                // Estrellas
+                                if (c.getCalidad() != null) {
+                                    int estrellas = Math.max(1, Math.min(5, Math.round(c.getCalidad())));
+                                    JLabel lblEstrellas = new JLabel("⭐".repeat(estrellas) + " (" + c.getCalidad() + "/5.0)");
+                                    lblEstrellas.setFont(new Font("SansSerif", Font.BOLD, 12));
+                                    lblEstrellas.setForeground(new Color(220, 140, 0));
+                                    lblEstrellas.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                    tarjetaComentario.add(lblEstrellas);
+                                    tarjetaComentario.add(Box.createVerticalStrut(5));
+                                }
+
+                                // Comentario
+                                if (c.getComentarios() != null && !c.getComentarios().isBlank()) {
+                                    JTextArea txtComentario = new JTextArea(c.getComentarios());
+                                    txtComentario.setEditable(false);
+                                    txtComentario.setLineWrap(true);
+                                    txtComentario.setWrapStyleWord(true);
+                                    txtComentario.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                                    txtComentario.setForeground(new Color(50, 60, 80));
+                                    txtComentario.setBackground(new Color(248, 250, 252));
+                                    txtComentario.setBorder(null);
+                                    txtComentario.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                    tarjetaComentario.add(txtComentario);
+                                }
+
+                                panelValoraciones.add(tarjetaComentario);
+                                panelValoraciones.add(Box.createVerticalStrut(8));
+                            }
+                        }
+                    }
+
+                    // Scroll para el panel
+                    JScrollPane scroll = new JScrollPane(panelValoraciones);
+                    scroll.setBorder(BorderFactory.createEmptyBorder());
+                    scroll.setPreferredSize(new Dimension(550, 400));
+                    scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+                    // Mostrar diálogo
+                    JOptionPane.showMessageDialog(
+                        AppMovilMock.this,
+                        scroll,
+                        "Valoraciones de " + (nombreEmpresa != null ? nombreEmpresa : "la empresa"),
+                        JOptionPane.PLAIN_MESSAGE
+                    );
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(
+                        AppMovilMock.this,
+                        "Error al cargar las valoraciones: " + ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                    );
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    /**
      * Crea el botón "Lanzar oferta" dinámicamente según el estado de la contratación
      */
     private JButton crearBotonOferta(Anuncio anuncio) {
@@ -1747,11 +1892,13 @@ public class AppMovilMock extends JFrame {
                                 btnOferta.setEnabled(false);
                                 break;
                             case "valorado":
-                                btnOferta.setText("⭐ Valorado");
-                                btnOferta.setBackground(new Color(220, 235, 255));
-                                btnOferta.setForeground(new Color(40, 80, 180));
-                                btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(80, 140, 220)));
-                                btnOferta.setEnabled(false);
+                                // Ya valorado - permitir contratar de nuevo
+                                btnOferta.setText("🔄 Contratar de nuevo");
+                                btnOferta.setBackground(new Color(40, 167, 69));
+                                btnOferta.setForeground(Color.WHITE);
+                                btnOferta.setBorder(new UIUtils.RoundedBorder(14, new Color(40, 167, 69)));
+                                btnOferta.setEnabled(true);
+                                btnOferta.addActionListener(e -> lanzarOferta(anuncio, btnOferta));
                                 break;
                             default:
                                 btnOferta.setText("🚀 Lanzar oferta");

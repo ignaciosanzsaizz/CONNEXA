@@ -80,5 +80,15 @@ public class ContratacionControler {
         }
         return dao.findOne(nifEmpresa, idUser, idAnuncio);
     }
+
+    /**
+     * Obtiene las valoraciones de una empresa
+     */
+    public List<Contratacion> getValoraciones(String nifEmpresa) {
+        if (nifEmpresa == null || nifEmpresa.isBlank()) {
+            return List.of();
+        }
+        return dao.getValoraciones(nifEmpresa);
+    }
 }
 

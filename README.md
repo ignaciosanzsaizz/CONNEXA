@@ -9,35 +9,45 @@ La app reduce ese esfuerzo con filtros claros (categoría, trabajo, radio de ubi
 Funcionalidades actuales
 
 Búsqueda filtrada por:
+  • Categoría y tipo de trabajo
+  • Radio de ubicación (p. ej., 500 m, 1–10 km)
+  • Calidad mínima (estrellas)
 
-  Categoría y tipo de trabajo
-
-  Radio de ubicación (p. ej., 500 m, 1–10 km)
-
-  Calidad mínima (estrellas)
-
-  
 Listado de resultados con precio y acciones rápidas:
+  • Ver detalles del anuncio (descripción, dirección, mapa, precio)
+  • Chatear con el proveedor (abre o reanuda el hilo)
+  • ⭐ Ver valoraciones y comentarios de otros clientes
+  • 🚀 Lanzar oferta para contratar el servicio
 
-  Ver detalles del anuncio (descripción, dirección, mapa, precio)
+Sistema de contrataciones:
+  • Contratar servicios desde Búsquedas o Favoritos
+  • Gestionar contrataciones activas en la pestaña "Contrataciones"
+  • Terminar contratos y valorar el servicio (1-5 estrellas)
+  • Dejar comentarios sobre la experiencia
+  • Posibilidad de recontratar servicios después de valorar
 
-  Chatear con el proveedor (abre o reanuda el hilo)
+Sistema de valoraciones:
+  • Ver calificación promedio de empresas
+  • Leer comentarios de clientes anteriores
+  • Calificación automática que se actualiza con cada valoración
 
-  Detalle del anuncio con mapa embebido y datos completos.
+Gestión de perfil empresarial:
+  • Crear y editar perfil de empresa con foto
+  • Imagen por defecto si no se sube foto
+  • Visualización organizada de datos empresariales
 
-  Mensajería integrada (historial por proveedor).
-  
+Navegación inferior por secciones (Perfil, Búsquedas, Favoritos, Contrataciones, Chats, Mi Empresa)
 
-Navegación inferior por secciones (Perfil, Búsquedas, Favoritos, Chats, Empresa).
+Mensajería integrada (historial por proveedor)
 
-Gestión básica de empresa/anuncios (crear y listar anuncios).
+Gestión de anuncios empresariales (crear y listar anuncios)
 
 
 Cómo pueden usarlo los usuarios
 
 Nota: de momento NO está disponible para uso público. Uso restringido a pruebas internas.
 
-Prueba local :
+Prueba local:
 
 Asegúrate de tener Java 17+.
 
@@ -48,20 +58,23 @@ cd /ruta/hasta/la/carpeta/de/los/jars
 
 Arranca el servidor (conecta a la BD configurada para pruebas):
 
-java -jar server.jar
+java -jar server_isw.jar
 
 
 En otra terminal, arranca el cliente:
 
-java -jar client.jar
+java -jar client_isw.jar
 
 
-Explora: Búsquedas → aplica filtros → Ver detalles → Chatear.
+Explora las funcionalidades:
+  • Búsquedas → Aplica filtros → Ver detalles/valoraciones → Lanzar oferta
+  • Contrataciones → Gestionar contratos → Terminar → Valorar
+  • Ver calificaciones de empresas antes de contratar
 
 
 Dónde encontrar ayuda
 
-Manual de usuario: incluye capturas y pasos de uso (búsquedas, detalle, chat).
+Manual de usuario: incluye capturas y pasos de uso (búsquedas, detalle, chat, contrataciones)
 
 Soporte de pruebas internas: contacto del proyecto "contacto.connexa@gmail.com"
 

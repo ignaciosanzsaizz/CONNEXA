@@ -17,8 +17,10 @@ public class ContratacionApi {
         s.put("nifEmpresa", nifEmpresa);
         s.put("idUser", idUser);
         s.put("idAnuncio", idAnuncio);
+
         s = c.sentMessage("/contratacion/crear", s);
-        return Boolean.TRUE.equals(s.get("ok"));
+
+        return s != null && Boolean.TRUE.equals(s.get("ok"));
     }
 
     /**
@@ -31,7 +33,7 @@ public class ContratacionApi {
         s.put("idUser", idUser);
         s.put("idAnuncio", idAnuncio);
         s = c.sentMessage("/contratacion/existe", s);
-        return Boolean.TRUE.equals(s.get("existe"));
+        return s != null && Boolean.TRUE.equals(s.get("existe"));
     }
 
     /**
@@ -42,11 +44,18 @@ public class ContratacionApi {
         Client c = new Client();
         HashMap<String, Object> s = new HashMap<>();
         s.put("idUser", idUser);
+
         s = c.sentMessage("/contratacion/list", s);
+
+        if (s == null) {
+            return List.of();
+        }
+
         Object o = s.get("contrataciones");
         if (o instanceof List<?>) {
             return (List<Contratacion>) o;
         }
+
         return List.of();
     }
 
@@ -60,7 +69,7 @@ public class ContratacionApi {
         s.put("idUser", idUser);
         s.put("idAnuncio", idAnuncio);
         s = c.sentMessage("/contratacion/terminar", s);
-        return Boolean.TRUE.equals(s.get("ok"));
+        return s != null && Boolean.TRUE.equals(s.get("ok"));
     }
 
     /**
@@ -75,7 +84,28 @@ public class ContratacionApi {
         s.put("calidad", calidad);
         s.put("comentarios", comentarios);
         s = c.sentMessage("/contratacion/valorar", s);
-        return Boolean.TRUE.equals(s.get("ok"));
+        return s != null && Boolean.TRUE.equals(s.get("ok"));
+    }
+
+    /**
+     * Obtiene las valoraciones de una empresa
+     */
+    @SuppressWarnings("unchecked")
+    public List<Contratacion> getValoraciones(String nifEmpresa) {
+        Client c = new Client();
+        HashMap<String, Object> s = new HashMap<>();
+        s.put("nifEmpresa", nifEmpresa);
+        s = c.sentMessage("/contratacion/valoraciones", s);
+
+        if (s == null) {
+            return List.of();
+        }
+
+        Object o = s.get("valoraciones");
+        if (o instanceof List<?>) {
+            return (List<Contratacion>) o;
+        }
+        return List.of();
     }
 
     /**

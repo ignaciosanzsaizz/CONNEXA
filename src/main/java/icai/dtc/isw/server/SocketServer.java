@@ -480,6 +480,21 @@ public class SocketServer extends Thread {
                     objectOutputStream.flush();
                     break;
                 }
+
+                case "/contratacion/valoraciones": {
+                    String nifEmpresa = (String) session.get("nifEmpresa");
+
+                    icai.dtc.isw.controler.ContratacionControler cc = new icai.dtc.isw.controler.ContratacionControler();
+                    java.util.List<icai.dtc.isw.domain.Contratacion> valoraciones = cc.getValoraciones(nifEmpresa);
+
+                    mensajeOut.setContext("/contratacionValoracionesResponse");
+                    session.put("valoraciones", valoraciones);
+                    mensajeOut.setSession(session);
+                    objectOutputStream.writeObject(mensajeOut);
+                    objectOutputStream.flush();
+                    break;
+                }
+
                 case "/pago/save": {
                     // El cliente manda un objeto Pago ya relleno en session["pago"]
                     Pago pago = (Pago) session.get("pago");

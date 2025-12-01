@@ -14,8 +14,9 @@ public class ContratacionDAO {
     public boolean crear(String nifEmpresa, Integer idUser, String idAnuncio) {
         Connection con = ConnectionDAO.getInstance().getConnection();
 
-        if (existe(nifEmpresa, idUser, idAnuncio)) {
-            return true;
+        // Verificar si existe una contratación ACTIVA (no valorada)
+        if (existeActiva(nifEmpresa, idUser, idAnuncio)) {
+            return true; // Ya hay una contratación activa, no crear duplicado
         }
 
         String sql = """
@@ -32,6 +33,28 @@ public class ContratacionDAO {
             ex.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Verifica si existe una contratación ACTIVA o TERMINADA (no valorada)
+     */
+    public boolean existeActiva(String nifEmpresa, Integer idUser, String idAnuncio) {
+        Connection con = ConnectionDAO.getInstance().getConnection();
+        String sql = "SELECT COUNT(*) FROM contrataciones WHERE nif_empresa = ? AND id_user = ? AND id_anuncio = ? AND estado IN ('activo', 'terminado')";
+
+        try (PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, nifEmpresa);
+            pst.setInt(2, idUser);
+            pst.setString(3, idAnuncio);
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return false;
     }
 
     /**
@@ -151,11 +174,12 @@ public class ContratacionDAO {
     }
 
     /**
-     * Obtiene el estado de una contratación específica
+     * Obtiene el estado de una contratación específica (solo activas o terminadas)
+     * Devuelve null si no hay contratación activa/terminada (permite recontratar)
      */
     public String getEstado(String nifEmpresa, Integer idUser, String idAnuncio) {
         Connection con = ConnectionDAO.getInstance().getConnection();
-        String sql = "SELECT estado FROM contrataciones WHERE nif_empresa = ? AND id_user = ? AND id_anuncio = ?";
+        String sql = "SELECT estado FROM contrataciones WHERE nif_empresa = ? AND id_user = ? AND id_anuncio = ? AND estado IN ('activo', 'terminado') ORDER BY fecha_contratacion DESC LIMIT 1";
 
         try (PreparedStatement pst = con.prepareStatement(sql)) {
             pst.setString(1, nifEmpresa);
@@ -169,7 +193,7 @@ public class ContratacionDAO {
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
-        return null;
+        return null; // No hay contratación activa, se puede contratar de nuevo
     }
 
     /**
@@ -215,6 +239,45 @@ public class ContratacionDAO {
             ex.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * Obtiene las valoraciones de una empresa (solo las que tienen calificación)
+     */
+    public List<Contratacion> getValoraciones(String nifEmpresa) {
+        List<Contratacion> lista = new ArrayList<>();
+        Connection con = ConnectionDAO.getInstance().getConnection();
+        String sql = """
+            SELECT c.*, e.empresa as nombre_empresa
+            FROM contrataciones c
+            LEFT JOIN empresa e ON c.nif_empresa = e.nif
+            WHERE c.nif_empresa = ? AND c.estado = 'valorado' AND c.calidad IS NOT NULL
+            ORDER BY c.fecha_terminacion DESC
+            """;
+
+        try (PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, nifEmpresa);
+            try (ResultSet rs = pst.executeQuery()) {
+                while (rs.next()) {
+                    Contratacion c = new Contratacion();
+                    c.setNifEmpresa(rs.getString("nif_empresa"));
+                    c.setIdUser(rs.getInt("id_user"));
+                    c.setIdAnuncio(rs.getString("id_anuncio"));
+                    c.setEsFavorito(rs.getBoolean("es_favorito"));
+                    c.setCalidad(rs.getFloat("calidad"));
+                    c.setComentarios(rs.getString("comentarios"));
+                    c.setFechaContratacion(rs.getTimestamp("fecha_contratacion"));
+                    c.setFechaTerminacion(rs.getTimestamp("fecha_terminacion"));
+                    c.setEstado(rs.getString("estado"));
+                    c.setNombreEmpresa(rs.getString("nombre_empresa"));
+
+                    lista.add(c);
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return lista;
     }
 }
 

@@ -11,7 +11,7 @@ public class Empresa implements Serializable {
     private String sector;
     private String ubicacion;
     private String fotoPerfil; // Base64 de la imagen de perfil
-
+    private Float calidad; // Promedio de valoraciones (1-5)
     public Empresa() {}
 
     public Empresa(String mail, String empresa, String nif, String sector, String ubicacion) {
@@ -48,4 +48,7 @@ public class Empresa implements Serializable {
 
     public String getFotoPerfil() { return fotoPerfil; }
     public void setFotoPerfil(String fotoPerfil) { this.fotoPerfil = fotoPerfil; }
+
+    public Float getCalidad() { return calidad; }
+    public void setCalidad(Float calidad) { this.calidad = calidad; }
 }
