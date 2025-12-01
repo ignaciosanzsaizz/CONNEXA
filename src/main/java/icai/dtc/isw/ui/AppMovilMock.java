@@ -404,7 +404,7 @@ public class AppMovilMock extends JFrame {
                         btnFav.setBackground(newButton.getBackground());
                         btnFav.setBorder(newButton.getBorder());
                         btnFav.setForeground(newButton.getForeground());
-                        btnFav.setToolTipText(isFav ? "Eliminar de favoritos" : "Añadir a favoritos");
+                        btnFav.setToolTipText(isFav ? "★ Quitar de favoritos" : "☆ Agregar a favoritos");
 
                         // Volver a añadir el listener de toggle
                         for (java.awt.event.ActionListener listener : btnFav.getActionListeners()) {
@@ -439,34 +439,96 @@ public class AppMovilMock extends JFrame {
         return c.isVisible() && c.getParent() != null && c.getParent().isVisible();
     }
 
-    // Crea un botón con forma de estrella.
+    // Crea un botón con forma de estrella usando gráficos en lugar de caracteres
     private JButton createStarButton(boolean isFavorito) {
-        JButton b = new JButton(isFavorito ? "⭐" : "☆");
+        JButton b = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Dibujar estrella en el centro
+                int w = getWidth();
+                int h = getHeight();
+                int size = Math.min(w, h) - 12;
+                int cx = w / 2;
+                int cy = h / 2;
+
+                // Puntos de la estrella
+                int[] xPoints = new int[10];
+                int[] yPoints = new int[10];
+                double angle = -Math.PI / 2; // Empezar desde arriba
+                for (int i = 0; i < 10; i++) {
+                    double r = (i % 2 == 0) ? size / 2.0 : size / 4.0;
+                    xPoints[i] = cx + (int) (r * Math.cos(angle));
+                    yPoints[i] = cy + (int) (r * Math.sin(angle));
+                    angle += Math.PI / 5;
+                }
+
+                // Dibujar estrella rellena o solo contorno
+                Color starColor = getForeground();
+                if (isFavorito || getModel().isRollover()) {
+                    g2d.setColor(starColor);
+                    g2d.fillPolygon(xPoints, yPoints, 10);
+                } else {
+                    g2d.setColor(starColor);
+                    g2d.setStroke(new BasicStroke(2.0f));
+                    g2d.drawPolygon(xPoints, yPoints, 10);
+                }
+
+                g2d.dispose();
+            }
+        };
+
         b.setUI(new BasicButtonUI());
         b.setFocusPainted(false);
-        b.setFont(new Font("Segoe UI Emoji", Font.BOLD, 18));
-        b.setPreferredSize(new Dimension(34, 34));
-        b.setMinimumSize(new Dimension(34, 34));
-        b.setMaximumSize(new Dimension(34, 34));
+        b.setPreferredSize(new Dimension(42, 42));
+        b.setMinimumSize(new Dimension(42, 42));
+        b.setMaximumSize(new Dimension(42, 42));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        Color borderColor = isFavorito ? new Color(255, 195, 0) : new Color(220, 226, 235);
-        Color bgColor = isFavorito ? new Color(255, 245, 210) : Color.WHITE;
+        // Colores
+        Color borderColor = isFavorito ? new Color(255, 165, 0) : new Color(200, 200, 200);
+        Color bgColor = isFavorito ? new Color(255, 248, 220) : new Color(250, 250, 250);
+        Color starColor = isFavorito ? new Color(255, 140, 0) : new Color(150, 150, 150);
 
         b.setBackground(bgColor);
-        b.setBorder(new UIUtils.RoundedBorder(10, borderColor));
+        b.setBorder(BorderFactory.createCompoundBorder(
+            new UIUtils.RoundedBorder(12, borderColor),
+            BorderFactory.createEmptyBorder(2, 2, 2, 2)
+        ));
         b.setContentAreaFilled(true);
         b.setOpaque(true);
+        b.setForeground(starColor);
 
-        b.setForeground(isFavorito ? new Color(255, 175, 0) : new Color(150, 160, 180));
-
-        // Añadir hover simple
+        // Efecto hover
         b.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) {
-                b.setBackground(isFavorito ? new Color(255, 230, 170) : new Color(245, 245, 245));
+                if (isFavorito) {
+                    b.setBackground(new Color(255, 235, 180));
+                    b.setBorder(BorderFactory.createCompoundBorder(
+                        new UIUtils.RoundedBorder(12, new Color(255, 140, 0)),
+                        BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                    ));
+                } else {
+                    b.setBackground(new Color(255, 248, 220));
+                    b.setForeground(new Color(255, 140, 0));
+                    b.setBorder(BorderFactory.createCompoundBorder(
+                        new UIUtils.RoundedBorder(12, new Color(255, 165, 0)),
+                        BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                    ));
+                }
+                b.repaint();
             }
             @Override public void mouseExited(MouseEvent e) {
                 b.setBackground(bgColor);
+                b.setForeground(starColor);
+                b.setBorder(BorderFactory.createCompoundBorder(
+                    new UIUtils.RoundedBorder(12, borderColor),
+                    BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                ));
+                b.repaint();
             }
         });
 
@@ -1242,13 +1304,12 @@ public class AppMovilMock extends JFrame {
         rightPanel.add(Box.createVerticalStrut(10));
 
         // === Panel de botones Horizontales (FAV + DETALLES) ===
-        // CORRECCIÓN ESTÉTICA: Cambiamos FlowLayout.RIGHT a FlowLayout.CENTER para que el boton Ver detalles esté centrado,
-        // y eliminamos el botón de los "..."
-        JPanel btnWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        JPanel btnWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         btnWrapper.setOpaque(false);
         btnWrapper.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        btnWrapper.setMaximumSize(new Dimension(180, 45));
 
-        // --- Nuevo Botón de Favoritos ---
+        // --- Botón de Favoritos (Estrella) ---
         String idUsuario = safeUserId();
         boolean isFav = false;
         if (idUsuario != null && anuncio.getId() != null) {
@@ -1258,19 +1319,19 @@ public class AppMovilMock extends JFrame {
         }
 
         JButton btnFav = createStarButton(isFav);
-        btnFav.setToolTipText(isFav ? "Eliminar de favoritos" : "Añadir a favoritos");
+        btnFav.setToolTipText(isFav ? "⭐ Quitar de favoritos" : "⭐ Agregar a favoritos");
 
         // Listener del botón de favoritos
         btnFav.addActionListener(e -> toggleFavorito(anuncio, btnFav));
 
         // Botón Ver detalles
         JButton btnDetalles = UIUtils.primaryButton("Ver detalles");
-        btnDetalles.setPreferredSize(new Dimension(110, 34)); // Tamaño ajustado para encajar
-        btnDetalles.setMinimumSize(new Dimension(110, 34));
-        btnDetalles.setMaximumSize(new Dimension(110, 34));
+        btnDetalles.setPreferredSize(new Dimension(115, 38));
+        btnDetalles.setMinimumSize(new Dimension(115, 38));
+        btnDetalles.setMaximumSize(new Dimension(115, 38));
         btnDetalles.addActionListener(e -> showDetalleAnuncio(anuncio));
 
-        // Añadir el botón FAV y el botón DETALLES directamente al wrapper
+        // Añadir los botones al wrapper en orden: ESTRELLA primero, DETALLES después
         btnWrapper.add(btnFav);
         btnWrapper.add(btnDetalles);
 

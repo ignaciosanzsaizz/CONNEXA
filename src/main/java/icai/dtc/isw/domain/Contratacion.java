@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 public class Contratacion implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    private Integer id; // Clave primaria autoincremental
     private String nifEmpresa;
     private Integer idUser;
     private String idAnuncio;
@@ -32,6 +33,13 @@ public class Contratacion implements Serializable {
     }
 
     // Getters y Setters
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
     public String getNifEmpresa() {
         return nifEmpresa;
     }

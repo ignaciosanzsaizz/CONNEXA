@@ -14,10 +14,9 @@ import java.awt.*;
 
 public class JVentana extends JFrame {
 
-    public static final String PANTALLA_HOME        = "HOME";
-    public static final String PANTALLA_LOGIN       = "LOGIN";
-    public static final String PANTALLA_REGISTER    = "REGISTER";
-    public static final String PANTALLA_REGISTER_OK = "REGISTER_OK";
+    public static final String PANTALLA_HOME     = "HOME";
+    public static final String PANTALLA_LOGIN    = "LOGIN";
+    public static final String PANTALLA_REGISTER = "REGISTER";
 
     private final CardLayout cards = new CardLayout();
     private final JPanel root = new JPanel(cards);
@@ -107,9 +106,7 @@ public class JVentana extends JFrame {
                 this::irHome
         ), PANTALLA_REGISTER);
 
-        root.add(new RegisterOkPanel(() -> cards.show(root, PANTALLA_HOME)), PANTALLA_REGISTER_OK);
-
-        setExtendedState(JFrame.MAXIMIZED_BOTH); // maximiza a pantalla completa
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setResizable(false);
         cards.show(root, PANTALLA_HOME);
     }
@@ -118,3 +115,4 @@ public class JVentana extends JFrame {
     private void irLogin()    { cards.show(root, PANTALLA_LOGIN); }
     private void irRegister() { cards.show(root, PANTALLA_REGISTER); }
 }
+

@@ -105,6 +105,7 @@ public class ContratacionApi {
         if (o instanceof List<?>) {
             return (List<Contratacion>) o;
         }
+
         return List.of();
     }
 

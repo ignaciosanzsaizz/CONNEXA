@@ -99,6 +99,7 @@ public class ContratacionDAO {
             try (ResultSet rs = pst.executeQuery()) {
                 while (rs.next()) {
                     Contratacion c = new Contratacion();
+                    c.setId(rs.getInt("id"));
                     c.setNifEmpresa(rs.getString("nif_empresa"));
                     c.setIdUser(rs.getInt("id_user"));
                     c.setIdAnuncio(rs.getString("id_anuncio"));
@@ -216,6 +217,7 @@ public class ContratacionDAO {
             try (ResultSet rs = pst.executeQuery()) {
                 if (rs.next()) {
                     Contratacion c = new Contratacion();
+                    c.setId(rs.getInt("id"));
                     c.setNifEmpresa(rs.getString("nif_empresa"));
                     c.setIdUser(rs.getInt("id_user"));
                     c.setIdAnuncio(rs.getString("id_anuncio"));
@@ -247,6 +249,7 @@ public class ContratacionDAO {
     public List<Contratacion> getValoraciones(String nifEmpresa) {
         List<Contratacion> lista = new ArrayList<>();
         Connection con = ConnectionDAO.getInstance().getConnection();
+
         String sql = """
             SELECT c.*, e.empresa as nombre_empresa
             FROM contrataciones c
@@ -260,6 +263,7 @@ public class ContratacionDAO {
             try (ResultSet rs = pst.executeQuery()) {
                 while (rs.next()) {
                     Contratacion c = new Contratacion();
+                    c.setId(rs.getInt("id"));
                     c.setNifEmpresa(rs.getString("nif_empresa"));
                     c.setIdUser(rs.getInt("id_user"));
                     c.setIdAnuncio(rs.getString("id_anuncio"));

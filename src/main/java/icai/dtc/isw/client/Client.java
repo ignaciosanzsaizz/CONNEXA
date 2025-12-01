@@ -29,20 +29,11 @@ public class Client {
 		this.port = Integer.parseInt(PropertiesISW.getInstance().getProperty("port"));
 	}
 	public HashMap<String, Object> sentMessage(String Context, HashMap<String, Object> session) {
-		//Configure connections
-		//String host = PropertiesISW.getInstance().getProperty("host");
-		//int port = Integer.parseInt(PropertiesISW.getInstance().getProperty("port"));
-
 		System.out.println("Host: "+host+" port"+port);
-		//Create a cliente class
-		//Client cliente=new Client(host, port);
-
-		//HashMap<String,Object> session=new HashMap<String, Object>();
-		//session.put("/getCustomer","");
 
 		Message mensajeEnvio=new Message();
 		Message mensajeVuelta=new Message();
-		mensajeEnvio.setContext(Context);///getCustomer"
+		mensajeEnvio.setContext(Context);
 		mensajeEnvio.setSession(session);
 		this.sent(mensajeEnvio,mensajeVuelta);
 
@@ -59,12 +50,6 @@ public class Client {
 
             case "/getCustomerResponse":
 				session=mensajeVuelta.getSession();
-				Customer customer =(Customer) (session.get("Customer"));
-				if (customer!=null) {
-					System.out.println("He leído el id: " + customer.getId() + " con nombre: " + customer.getName());
-				}else {
-					System.out.println("No se ha recuperado nada de la base de datos");
-				}
 				break;
 
 			case "/empresaGetResponse":
@@ -93,17 +78,18 @@ public class Client {
 			case "/favoritosListResponse":
 			case "/chatListResponse":
 			case "/chatGetOrCreateResponse":
-			case "/chatMessagesResponse":
-			case "/chatSendResponse":
-			case "/chatReadResponse":
-			case "/contratacionCrearResponse":
-			case "/contratacionExisteResponse":
-			case "/contratacionListResponse":
-			case "/contratacionTerminarResponse":
-			case "/contratacionValorarResponse":
-			case "/contratacionEstadoResponse":
-				session = mensajeVuelta.getSession();
-				break;
+		case "/chatMessagesResponse":
+		case "/chatSendResponse":
+		case "/chatReadResponse":
+		case "/contratacionCrearResponse":
+		case "/contratacionExisteResponse":
+		case "/contratacionListResponse":
+		case "/contratacionTerminarResponse":
+		case "/contratacionValorarResponse":
+		case "/contratacionEstadoResponse":
+		case "/contratacionValoracionesResponse":
+			session = mensajeVuelta.getSession();
+			break;
 			case "/pagoSaveResponse":
 			case "/pagoGetResponse":
 			case "/pagoDeleteResponse":
@@ -137,17 +123,12 @@ public class Client {
 				out = echoSocket.getOutputStream();
 				ObjectOutputStream objectOutputStream = new ObjectOutputStream(out);
 
-				//Create the objetct to send
 				objectOutputStream.writeObject(messageOut);
 
-				// create a DataInputStream so we can read data from it.
 				ObjectInputStream objectInputStream = new ObjectInputStream(in);
 				Message msg=(Message)objectInputStream.readObject();
 				messageIn.setContext(msg.getContext());
 				messageIn.setSession(msg.getSession());
-		        /*System.out.println("\n1.- El valor devuelto es: "+messageIn.getContext());
-		        String cadena=(String) messageIn.getSession().get("Nombre");
-		        System.out.println("\n2.- La cadena devuelta es: "+cadena);*/
 
 			} catch (UnknownHostException e) {
 				System.err.println("Unknown host: " + host);
@@ -157,7 +138,6 @@ public class Client {
 				System.exit(1);
 			}
 
-			/** Closing all the resources */
 			out.close();
 			in.close();
 			echoSocket.close();
