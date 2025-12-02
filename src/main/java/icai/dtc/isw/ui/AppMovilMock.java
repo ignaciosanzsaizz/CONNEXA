@@ -876,10 +876,6 @@ public class AppMovilMock extends JFrame {
         SwingWorker<java.util.List<Anuncio>, Void> worker = new SwingWorker<>() {
             @Override
             protected java.util.List<Anuncio> doInBackground() {
-                System.out.println("=== BÚSQUEDA ===");
-                System.out.println("Categoría: " + categoria);
-                System.out.println("Trabajo: " + trabajo);
-
                 return anuncioApi.searchAnuncios(categoria, trabajo, calidadMin, origenFinal, radioKmFinal);
             }
 
@@ -889,7 +885,6 @@ public class AppMovilMock extends JFrame {
                     var lista = get();
                     contenedorLista.removeAll();
 
-                    System.out.println("Resultados encontrados: " + (lista != null ? lista.size() : 0));
                     if (lista == null || lista.isEmpty()) {
                         JLabel empty = new JLabel("Sin resultados para los filtros actuales");
                         empty.setForeground(new Color(120,130,150));
@@ -1463,16 +1458,10 @@ public class AppMovilMock extends JFrame {
         }
 
         System.out.println("Iniciando chat:");
-        System.out.println("  Cliente: " + currentUser.getEmail());
-        System.out.println("  Empresa: " + a.getEmpresaEmail());
-        System.out.println("  Anuncio ID: " + a.getId());
         try {
-            // Crear o obtener chat existente
             Chat chat = chatApi.getOrCreateChat(currentUser.getEmail(), a.getEmpresaEmail(), a.getId());
 
             if (chat != null) {
-                System.out.println("Chat creado/obtenido con ID: " + chat.getId());
-                // Cambiar a la pestaña de chats y abrir el chat específico
                 setSelectedTab(btnChats);
                 subLabel.setText("💬 Chats");
 

@@ -8,6 +8,17 @@ import java.util.HashMap;
 
 public class AuthApi {
 
+    private static AuthApi instance;
+
+    private AuthApi() { }
+
+    public static synchronized AuthApi getInstance() {
+        if (instance == null) {
+            instance = new AuthApi();
+        }
+        return instance;
+    }
+
     public String registerUser(String email, String username, String password) {
         Client cliente = new Client();
         HashMap<String, Object> session = new HashMap<>();
@@ -27,14 +38,13 @@ public class AuthApi {
     public User loginUser(String email, String password) {
         Client cliente = new Client();
         HashMap<String, Object> session = new HashMap<>();
-        session.put("username", email); // el servidor interpreta como email
+        session.put("username", email);
         session.put("password", password);
 
         session = cliente.sentMessage("/loginUser", session);
         return (User) session.get("user");
     }
 
-    // (opcional) método auxiliar existente en tu clase original
     public String recuperarInformacion(int id) {
         Client cliente = new Client();
         HashMap<String,Object> session = new HashMap<>();
@@ -44,7 +54,6 @@ public class AuthApi {
         return (cu == null) ? "Error - No encontrado en la base de datos" : cu.getName();
     }
 
-    /* Validaciones básicas */
     public static boolean isEmail(String value) {
         return value != null && value.contains("@") && value.contains(".") && !value.contains(" ");
     }

@@ -267,12 +267,8 @@ public class EditarAnuncioPanel extends JDialog {
             boolean exito = api.updateAnuncio(anuncio.getId(), descripcion, precio,
                                              categoria, especificacion, ubicacion);
 
-            System.out.println("Resultado de actualización: " + exito + " para ID: " + anuncio.getId());
-
-            // Siempre cerrar el diálogo y recargar (aunque la API diga false, puede que haya funcionado)
             dispose();
 
-            // Recargar la lista de anuncios en el panel padre
             if (empresaPanel != null) {
                 empresaPanel.recargarAnuncios();
             }

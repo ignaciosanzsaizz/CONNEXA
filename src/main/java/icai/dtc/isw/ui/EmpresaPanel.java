@@ -360,12 +360,9 @@ public class EmpresaPanel extends JPanel {
                 new Thread(() -> {
                     try {
                         boolean ok = anuncioApi.deleteAnuncio(anuncio.getId());
-                        System.out.println("Resultado de eliminación: " + ok + " para ID: " + anuncio.getId());
 
-                        // Siempre recargar la lista en el EDT (aunque la API diga false, puede que haya funcionado)
                         SwingUtilities.invokeLater(() -> {
                             cargarEstado();
-                            // Mostrar mensaje solo si realmente no se eliminó (verificando la nueva lista)
                         });
                     } catch (Exception ex) {
                         ex.printStackTrace();

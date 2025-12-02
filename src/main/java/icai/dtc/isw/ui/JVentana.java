@@ -1,11 +1,5 @@
 package icai.dtc.isw.ui;
 
-/**
- * Ventana principal de escritorio encargada de mostrar las pantallas
- * de bienvenida, login y registro antes de lanzar la simulación de la
- * app móvil. Gestiona la navegación básica entre paneles Swing.
- */
-
 import icai.dtc.isw.domain.User;
 
 import javax.swing.*;
@@ -20,7 +14,7 @@ public class JVentana extends JFrame {
 
     private final CardLayout cards = new CardLayout();
     private final JPanel root = new JPanel(cards);
-    private final AuthApi auth = new AuthApi();
+    private final AuthApi auth = AuthApi.getInstance();
 
     public static void main(String[] args) {
         try {
